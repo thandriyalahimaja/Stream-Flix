@@ -62,7 +62,11 @@ api.interceptors.response.use(
     // Auto-refresh token on 401
     if (error.response?.status === 401 && !originalRequest._retry) {
       // If we don't have a token in memory and we fail, or if it is already a retry
-      if (originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/auth/login')) {
+      if (
+        originalRequest.url.includes('/auth/refresh') ||
+        originalRequest.url.includes('/auth/login') ||
+        originalRequest.url.includes('/auth/logout')
+      ) {
         return Promise.reject({ message, status: error.response?.status });
       }
 

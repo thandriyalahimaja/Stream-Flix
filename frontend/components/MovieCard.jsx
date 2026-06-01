@@ -73,7 +73,7 @@ export const MovieCard = memo(function MovieCard({ movie, size = 'md' }) {
           </div>
           <div className="font-medium" style={{ color: '#FFF6EC' }}>{movie.title}</div>
           <div className="flex gap-1.5 mt-1 flex-wrap">
-            {movie.genres.slice(0, 2).map((g) => (
+            {(Array.isArray(movie.genres) ? movie.genres : []).slice(0, 2).map((g) => (
               <Badge key={g} variant="glass">{g}</Badge>
             ))}
           </div>
