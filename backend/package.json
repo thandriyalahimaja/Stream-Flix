@@ -8,7 +8,12 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "seed": "node seed/seedMovies.js"
+    "seed:prod": "node seed/seedMoviesProduction.js",
+    "seed:dry": "node seed/seedMoviesProduction.js --dry-run",
+    "sync": "node seed/syncMovies.js",
+    "verify": "node seed/verifyMovies.js",
+    "migrate": "node seed/migrateMedia.js",
+    "migrate:dry": "node seed/migrateMedia.js --dry-run"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

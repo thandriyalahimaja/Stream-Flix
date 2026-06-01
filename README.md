@@ -268,12 +268,35 @@ Build the frontend:
 npm run build
 ```
 
-Seed movies from the backend folder:
+## Active Seed Pipeline
+
+StreamFlix features a production-safe movie seeding and synchronization system. The backend movie catalog contains exactly **98 movies** (including Hollywood classics and Indian cinema).
+
+To seed or update the production database catalog (safe, non-destructive upserts):
 
 ```bash
 cd backend
-npm run seed
+npm run seed:prod
 ```
+
+To sync the existing database catalog (idempotent, suitable for Render startup auto-sync):
+
+```bash
+npm run sync
+```
+
+To run a read-only health check verification of the movie catalog:
+
+```bash
+npm run verify
+```
+
+To perform a one-time Cloudinary media migration (uploads TMDB images to Cloudinary):
+
+```bash
+npm run migrate
+```
+
 
 ---
 
@@ -294,6 +317,8 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 CLOUDINARY_FOLDER=StreamFlix
+AUTO_SYNC_MOVIES=true
+SEED_FORCE_SYNC=false
 ```
 
 For the frontend, `VITE_API_URL` is optional. If omitted, the app uses `http://localhost:5000/api`.

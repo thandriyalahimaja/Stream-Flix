@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getAll, getById, search, getByGenre, getTrending, getRecommended, create, update, remove } from '../controllers/movieController.js';
-import { auth, adminOnly } from '../middleware/auth.js';
+import { auth, adminOnly, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -10,8 +10,8 @@ router.get('/search', search);
 router.get('/genre', getByGenre);
 router.get('/trending', getTrending);
 
-// Auth-optional (uses user prefs if available)
-router.get('/recommended', auth, getRecommended);
+// Auth-optional: personalised for logged-in users, top-rated fallback for guests
+router.get('/recommended', optionalAuth, getRecommended);
 
 // Must come after named routes
 router.get('/:id', getById);

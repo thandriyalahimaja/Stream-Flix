@@ -37,3 +37,24 @@ export function adminOnly(req, res, next) {
   next();
 }
 
+/**
+ * optionalAuth — sets req.user if a valid Bearer token is present,
+ * but always calls next() even if there is no token or it is invalid.
+ *
+ * Used for endpoints that serve different content to logged-in vs guest users
+ * (e.g. GET /movies/recommended falls back to top-rated for guests).
+ */
+export async function optionalAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return next(); // no token → guest, proceed
+
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const userExists = await User.exists({ _id: decoded.id });
+    if (userExists) req.user = decoded;
+  } catch {
+    // Invalid/expired token → treat as guest, do not throw
+  }
+  next();
+}
+
