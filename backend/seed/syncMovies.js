@@ -26,8 +26,8 @@ export async function syncMovies(options = {}) {
  * Runs sync and updates the version only if needed.
  */
 export async function maybeRunMovieSync() {
-  if (process.env.AUTO_SYNC_MOVIES !== 'true') {
-    console.log('ℹ️  AUTO_SYNC_MOVIES is not enabled. Skipping startup auto-sync.');
+  if (process.env.AUTO_SYNC_MOVIES === 'false') {
+    console.log('ℹ️  AUTO_SYNC_MOVIES is explicitly disabled. Skipping startup auto-sync.');
     return;
   }
 

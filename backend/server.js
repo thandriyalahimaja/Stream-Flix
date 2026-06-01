@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
 import { maybeRunMovieSync } from './seed/syncMovies.js';
+import { maybeRunAdminSeed } from './seed/seedAdmin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import movieRoutes from './routes/movieRoutes.js';
@@ -95,6 +96,7 @@ app.use(errorHandler);
 async function startServer() {
   await connectDB();
   await maybeRunMovieSync();
+  await maybeRunAdminSeed();
   app.listen(env.PORT, () => {
     console.log(`🌊 StreamFlix API running on port ${env.PORT} [${env.NODE_ENV}]`);
   });
