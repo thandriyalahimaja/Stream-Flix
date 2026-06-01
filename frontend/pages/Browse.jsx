@@ -43,11 +43,11 @@ export default function Browse() {
     
     // Filter logic
     if (activeTab === 'Family') {
-      list = list.filter((m) => Array.isArray(m.genres) && m.genres.includes('Family'));
+      list = list.filter((m) => (m.genres || []).includes('Family'));
     } else if (activeTab === 'Sci-Fi') {
-      list = list.filter((m) => Array.isArray(m.genres) && m.genres.includes('Sci-Fi'));
+      list = list.filter((m) => (m.genres || []).includes('Sci-Fi'));
     } else if (genre !== 'All') {
-      list = list.filter((m) => Array.isArray(m.genres) && m.genres.includes(genre));
+      list = list.filter((m) => (m.genres || []).includes(genre));
     }
 
     // Sort logic

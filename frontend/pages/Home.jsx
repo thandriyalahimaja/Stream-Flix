@@ -106,9 +106,9 @@ export default function Home() {
   const hero = moviesList[0] || null;
 
   // Filter movies into specific category arrays
-  const sciFiMovies = moviesList.filter((m) => Array.isArray(m.genres) && m.genres.includes('Sci-Fi'));
-  const dramaMovies = moviesList.filter((m) => Array.isArray(m.genres) && m.genres.includes('Drama'));
-  const thrillerMovies = moviesList.filter((m) => Array.isArray(m.genres) && m.genres.includes('Thriller'));
+  const sciFiMovies = moviesList.filter((m) => (m.genres || []).includes('Sci-Fi'));
+  const dramaMovies = moviesList.filter((m) => (m.genres || []).includes('Drama'));
+  const thrillerMovies = moviesList.filter((m) => (m.genres || []).includes('Thriller'));
 
   return (
     <MainLayout>
@@ -201,7 +201,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {(Array.isArray(hero.genres) ? hero.genres : []).map((g) => (
+                  {(hero.genres || []).map((g) => (
                     <Badge key={g} variant="primary">{g}</Badge>
                   ))}
                 </div>

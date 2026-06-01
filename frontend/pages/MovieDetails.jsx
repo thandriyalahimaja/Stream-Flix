@@ -65,9 +65,7 @@ export default function MovieDetails() {
             .filter(
               (candidate) =>
                 candidate._id !== res.data._id &&
-                Array.isArray(candidate.genres) &&
-                Array.isArray(res.data.genres) &&
-                candidate.genres.some((genre) => res.data.genres.includes(genre))
+                (candidate.genres || []).some((genre) => (res.data.genres || []).includes(genre))
             )
             .slice(0, 6);
           setRelatedMovies(similarMovies);
@@ -306,7 +304,7 @@ export default function MovieDetails() {
                 <Clock size={14} /> {movie.duration}
               </span>
               <div className="flex gap-2">
-                {(Array.isArray(movie.genres) ? movie.genres : []).map((genre) => (
+                {(movie.genres || []).map((genre) => (
                   <Badge key={genre} variant="primary">{genre}</Badge>
                 ))}
               </div>
@@ -370,7 +368,7 @@ export default function MovieDetails() {
 
               <h3 className="mt-8 text-md font-semibold" style={{ color: 'var(--cw-text)' }}>Cast</h3>
               <div className="flex flex-wrap gap-3 mt-3">
-                {(Array.isArray(movie.cast) ? movie.cast : []).map((actor) => (
+                {(movie.cast || []).map((actor) => (
                   <div key={actor} className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/10 border border-white/5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-tr from-[var(--cw-button)] to-[var(--cw-accent)]">
                       {(actor || '').split(' ').map((namePart) => namePart[0]).join('')}
@@ -571,7 +569,7 @@ export default function MovieDetails() {
               <div className="pt-2">
                 <dt className="text-xs mb-2" style={{ color: 'var(--cw-text2)' }}>Genres</dt>
                 <dd className="flex flex-wrap gap-1.5">
-                  {(Array.isArray(movie.genres) ? movie.genres : []).map((genre) => (
+                  {(movie.genres || []).map((genre) => (
                     <Badge key={genre}>{genre}</Badge>
                   ))}
                 </dd>
