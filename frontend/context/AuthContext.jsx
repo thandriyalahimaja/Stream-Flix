@@ -32,9 +32,12 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('streamflix_session_active');
         }
       } catch (err) {
-        // Silent fail — no active session found, user stays logged out
-        setUser(null);
-        localStorage.removeItem('streamflix_session_active');
+        // Silent fail — only remove session if it's an explicit 401/403 authorization failure.
+        // If it's a network error or server offline (5xx), do NOT clear the session so the user remains logged in.
+        if (err.status === 401 || err.status === 403) {
+          setUser(null);
+          localStorage.removeItem('streamflix_session_active');
+        }
       } finally {
         setLoading(false);
       }

@@ -96,9 +96,12 @@ api.interceptors.response.use(
           })
           .catch((err) => {
             processQueue(err, null);
-            setAccessToken(null);
-            // Dispatch event to notify AuthContext to update UI
-            window.dispatchEvent(new Event('auth-logout'));
+            // Only invalidate session and log out if the server explicitly tells us the refresh token is unauthorized (401) or forbidden (403).
+            // If the server is restarting/offline (e.g. 502, 503, 504, or network error), do NOT log out!
+            if (err.response?.status === 401 || err.response?.status === 403) {
+              setAccessToken(null);
+              window.dispatchEvent(new Event('auth-logout'));
+            }
             reject(err);
           })
           .finally(() => {
