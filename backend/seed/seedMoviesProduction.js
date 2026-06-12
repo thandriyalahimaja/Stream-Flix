@@ -29,7 +29,7 @@ const p = (path) => `https://image.tmdb.org/t/p/w500${path}`;
 const b = (path) => `https://image.tmdb.org/t/p/w1280${path}`;
 
 // ─── 90-Movie Verified Catalog ─────────────────────────────────────────────────
-const movieCatalog = [
+export const movieCatalog = [
 
   // ══════════════════════════════════════════════════════════════════
   // ANIMATION (10) — TMDB verified poster/backdrop paths

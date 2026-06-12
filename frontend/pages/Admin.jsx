@@ -11,13 +11,16 @@ import adminService from '@/services/adminService';
 import movieService from '@/services/movieService';
 import { useToast } from '@/context/ToastContext';
 
-const tabs = ['Overview', 'Content', 'Users', 'Analytics'];
+const tabs = ['Overview', 'Content', 'Users', 'Analytics', 'Data Quality'];
 
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('Overview');
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [dqStats, setDqStats] = useState(null);
+  const [loadingDq, setLoadingDq] = useState(false);
+  const [exportingSeed, setExportingSeed] = useState(false);
   const toast = useToast();
 
   // Movie list states
@@ -71,6 +74,47 @@ export default function Admin() {
       setLoadingStats(false);
     }
   }, []);
+
+  const loadDqStats = useCallback(async () => {
+    setLoadingDq(true);
+    try {
+      const res = await adminService.getDataQuality();
+      if (res.success) {
+        setDqStats(res.data);
+      }
+    } catch {
+      toast.error('Failed to load data quality statistics.');
+    } finally {
+      setLoadingDq(false);
+    }
+  }, [toast]);
+
+  const handleExportSeed = async () => {
+    setExportingSeed(true);
+    try {
+      const res = await adminService.exportSeed();
+      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'movies_seed_export.json');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Seed dataset exported successfully!');
+    } catch {
+      toast.error('Failed to export seed dataset.');
+    } finally {
+      setExportingSeed(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Data Quality') {
+      loadDqStats();
+    }
+  }, [activeTab, loadDqStats]);
 
   // Load Movies List
   const loadMovies = useCallback(async () => {
@@ -173,14 +217,66 @@ export default function Admin() {
     setSubmittingMovie(true);
     setFormError(null);
 
+    const isValidDuration = (duration) => {
+      if (typeof duration === 'number') {
+        return duration >= 1 && duration <= 500;
+      }
+      if (typeof duration !== 'string' || !duration.trim()) return false;
+      const hrMatch = duration.match(/(\d+)\s*h/);
+      const minMatch = duration.match(/(\d+)\s*m/);
+      let totalMinutes = 0;
+      if (hrMatch) totalMinutes += parseInt(hrMatch[1], 10) * 60;
+      if (minMatch) totalMinutes += parseInt(minMatch[1], 10);
+      if (!hrMatch && !minMatch) {
+        const rawNum = parseInt(duration, 10);
+        if (isNaN(rawNum)) return false;
+        totalMinutes = rawNum;
+      }
+      return totalMinutes >= 1 && totalMinutes <= 500;
+    };
+
     if (!formData.title || !formData.director || !formData.synopsis) {
       setFormError('Please fill in all required fields (Title, Director, Synopsis).');
       setSubmittingMovie(false);
       return;
     }
 
-    if (!formData.poster?.url) {
-      setFormError('Please upload a poster image.');
+    if (!formData.poster?.url || !/^https?:\/\//.test(formData.poster.url)) {
+      setFormError('Please upload or provide a valid poster image URL.');
+      setSubmittingMovie(false);
+      return;
+    }
+
+    if (!formData.backdrop?.url || !/^https?:\/\//.test(formData.backdrop.url)) {
+      setFormError('Please upload or provide a valid backdrop image URL.');
+      setSubmittingMovie(false);
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const yearNum = Number(formData.year);
+    if (isNaN(yearNum) || yearNum < 1888 || yearNum > currentYear + 1) {
+      setFormError(`Please enter a valid release year between 1888 and ${currentYear + 1}.`);
+      setSubmittingMovie(false);
+      return;
+    }
+
+    const ratingNum = Number(formData.rating);
+    if (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 10) {
+      setFormError('Rating must be a number between 0.0 and 10.0.');
+      setSubmittingMovie(false);
+      return;
+    }
+
+    if (!isValidDuration(formData.duration)) {
+      setFormError('Duration must represent 1 to 500 minutes (e.g. "2h 30m" or "150").');
+      setSubmittingMovie(false);
+      return;
+    }
+
+    const youtubeId = (formData.youtubeId || '').trim();
+    if (!youtubeId || !/^[a-zA-Z0-9_-]{11}$/.test(youtubeId)) {
+      setFormError('YouTube ID must be exactly 11 characters (full video URLs are not allowed).');
       setSubmittingMovie(false);
       return;
     }
@@ -757,6 +853,144 @@ export default function Admin() {
                   ) : (
                     <p className="text-sm py-4 text-center col-span-full" style={{ color: 'var(--cw-text2)' }}>No movie engagement data available.</p>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: DATA QUALITY CENTER */}
+          {activeTab === 'Data Quality' && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-6 rounded-2xl flex flex-col justify-between" style={{ background: 'var(--cw-card)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cw-text2)' }}>Total Catalog Movies</span>
+                  <span className="text-3xl font-bold mt-2" style={{ color: 'var(--cw-text)' }}>{loadingDq ? '...' : dqStats?.totalMovies || 0}</span>
+                </div>
+                <div className="p-6 rounded-2xl flex flex-col justify-between border border-green-500/20" style={{ background: 'var(--cw-card)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cw-text2)' }}>Healthy Movies</span>
+                  <span className="text-3xl font-bold mt-2 text-green-500">{loadingDq ? '...' : dqStats?.healthyMovies || 0}</span>
+                </div>
+                <div className="p-6 rounded-2xl flex flex-col justify-between border border-yellow-500/20" style={{ background: 'var(--cw-card)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cw-text2)' }}>Movies With Warnings</span>
+                  <span className="text-3xl font-bold mt-2 text-yellow-500">{loadingDq ? '...' : dqStats?.moviesWithWarnings || 0}</span>
+                </div>
+                <div className="p-6 rounded-2xl flex flex-col justify-between border border-red-500/20" style={{ background: 'var(--cw-card)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cw-text2)' }}>Movies With Critical Errors</span>
+                  <span className="text-3xl font-bold mt-2 text-red-500">{loadingDq ? '...' : dqStats?.moviesWithCriticalErrors || 0}</span>
+                </div>
+              </div>
+
+              {/* Data Quality Center Actions & Summary */}
+              <div className="rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ background: 'var(--cw-card)' }}>
+                <div>
+                  <h3 className="font-semibold" style={{ color: 'var(--cw-text)' }}>Export Clean Seed Dataset</h3>
+                  <p className="text-sm mt-1" style={{ color: 'var(--cw-text2)' }}>
+                    Download the entire MERN database catalog formatted cleanly as a JSON seed.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleExportSeed} 
+                  loading={exportingSeed}
+                  className="w-full sm:w-auto"
+                >
+                  Export Seed Dataset
+                </Button>
+              </div>
+
+              {/* Detailed Quality Flags */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Missing/Invalid Trailers Card */}
+                <div className="rounded-2xl p-6 flex flex-col" style={{ background: 'var(--cw-card)' }}>
+                  <h4 className="font-semibold mb-4 flex justify-between" style={{ color: 'var(--cw-text)' }}>
+                    <span>Trailer Quality</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">
+                      {loadingDq ? '...' : (dqStats?.missingTrailersCount || 0) + (dqStats?.invalidTrailersCount || 0)} flags
+                    </span>
+                  </h4>
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-60 pr-1">
+                    {loadingDq ? (
+                      <p className="text-sm" style={{ color: 'var(--cw-text2)' }}>Loading...</p>
+                    ) : (
+                      <>
+                        {dqStats?.lists?.missingTrailers?.map((title) => (
+                          <div key={title} className="p-2 rounded bg-black/15 text-xs text-red-400">
+                            <strong>{title}</strong>: Missing youtubeId
+                          </div>
+                        ))}
+                        {dqStats?.lists?.invalidTrailers?.map((item) => (
+                          <div key={item.title} className="p-2 rounded bg-black/15 text-xs text-yellow-500">
+                            <strong>{item.title}</strong>: Malformed YouTube ID (`{item.youtubeId}`)
+                          </div>
+                        ))}
+                        {(!dqStats?.lists?.missingTrailers?.length && !dqStats?.lists?.invalidTrailers?.length) && (
+                          <p className="text-xs text-neutral-400">All trailers are properly formatted and valid.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Missing Posters / Backdrops Card */}
+                <div className="rounded-2xl p-6 flex flex-col" style={{ background: 'var(--cw-card)' }}>
+                  <h4 className="font-semibold mb-4 flex justify-between" style={{ color: 'var(--cw-text)' }}>
+                    <span>Media URL Integrity</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">
+                      {loadingDq ? '...' : (dqStats?.missingPostersCount || 0) + (dqStats?.missingBackdropsCount || 0)} flags
+                    </span>
+                  </h4>
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-60 pr-1">
+                    {loadingDq ? (
+                      <p className="text-sm" style={{ color: 'var(--cw-text2)' }}>Loading...</p>
+                    ) : (
+                      <>
+                        {dqStats?.lists?.missingPosters?.map((title) => (
+                          <div key={title} className="p-2 rounded bg-black/15 text-xs text-red-400">
+                            <strong>{title}</strong>: Missing Poster URL
+                          </div>
+                        ))}
+                        {dqStats?.lists?.missingBackdrops?.map((title) => (
+                          <div key={title} className="p-2 rounded bg-black/15 text-xs text-red-400">
+                            <strong>{title}</strong>: Missing Backdrop URL
+                          </div>
+                        ))}
+                        {(!dqStats?.lists?.missingPosters?.length && !dqStats?.lists?.missingBackdrops?.length) && (
+                          <p className="text-xs text-neutral-400">All movies have valid poster and backdrop URLs.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metadata & Duplicate Errors Card */}
+                <div className="rounded-2xl p-6 flex flex-col" style={{ background: 'var(--cw-card)' }}>
+                  <h4 className="font-semibold mb-4 flex justify-between" style={{ color: 'var(--cw-text)' }}>
+                    <span>Metadata & Duplicates</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">
+                      {loadingDq ? '...' : (dqStats?.duplicateTitlesCount || 0) + (dqStats?.metadataErrorsCount || 0)} flags
+                    </span>
+                  </h4>
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-60 pr-1">
+                    {loadingDq ? (
+                      <p className="text-sm" style={{ color: 'var(--cw-text2)' }}>Loading...</p>
+                    ) : (
+                      <>
+                        {dqStats?.lists?.duplicateTitles?.map((title) => (
+                          <div key={title} className="p-2 rounded bg-black/15 text-xs text-red-400">
+                            <strong>{title}</strong>: Duplicate title + release year
+                          </div>
+                        ))}
+                        {dqStats?.lists?.metadataErrors?.map((item) => (
+                          <div key={item.title} className="p-2 rounded bg-black/15 text-xs text-yellow-500">
+                            <strong>{item.title}</strong>: {item.errors?.join(', ')}
+                          </div>
+                        ))}
+                        {(!dqStats?.lists?.duplicateTitles?.length && !dqStats?.lists?.metadataErrors?.length) && (
+                          <p className="text-xs text-neutral-400">No duplicate titles or metadata validation flags.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

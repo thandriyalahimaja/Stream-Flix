@@ -226,3 +226,189 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   res.json({ success: true, message: 'User and all associated data deleted, and movie ratings recalculated.' });
 });
+
+/**
+ * GET /api/admin/export-seed
+ * Admin only — exports clean movie seed dataset matching structure of seedMoviesProduction.js
+ */
+export const exportSeed = asyncHandler(async (req, res) => {
+  const movies = await Movie.find().lean();
+
+  const cleanMovies = movies.map((movie) => {
+    return {
+      title: movie.title,
+      year: movie.year,
+      rating: movie.rating,
+      duration: movie.duration,
+      genres: movie.genres,
+      poster: {
+        url: movie.poster?.url || null,
+        publicId: movie.poster?.publicId || null,
+      },
+      backdrop: {
+        url: movie.backdrop?.url || null,
+        publicId: movie.backdrop?.publicId || null,
+      },
+      youtubeId: movie.youtubeId || null,
+      synopsis: movie.synopsis,
+      cast: movie.cast || [],
+      director: movie.director,
+      smartLabel: movie.smartLabel || '',
+    };
+  });
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename=movies_seed_export.json');
+  res.json(cleanMovies);
+});
+
+/**
+ * GET /api/admin/data-quality
+ * Admin only — analyzes data quality of movie records and compiles health metrics
+ */
+export const getDataQuality = asyncHandler(async (req, res) => {
+  const movies = await Movie.find().lean();
+  const currentYear = new Date().getFullYear();
+
+  let healthyCount = 0;
+  let warningCount = 0;
+  let criticalCount = 0;
+
+  const missingTrailers = [];
+  const invalidTrailers = [];
+  const missingPosters = [];
+  const missingBackdrops = [];
+  const duplicateTitles = [];
+  const metadataErrors = [];
+
+  const titleYearSeen = new Map();
+  const ytSeen = new Map();
+
+  movies.forEach((m) => {
+    let hasCritical = false;
+    let hasWarning = false;
+    const errors = [];
+
+    // Title / Synopsis / Director
+    if (!m.title || !m.title.trim()) {
+      hasCritical = true;
+      errors.push('Missing Title');
+    }
+    if (!m.synopsis || !m.synopsis.trim()) {
+      hasCritical = true;
+      errors.push('Missing Synopsis');
+    }
+    if (!m.director || !m.director.trim()) {
+      hasCritical = true;
+      errors.push('Missing Director');
+    }
+
+    // Year
+    if (!m.year || m.year < 1888 || m.year > currentYear + 1) {
+      hasCritical = true;
+      errors.push(`Invalid Year (${m.year || 'Missing'})`);
+    }
+
+    // Rating
+    if (m.rating === undefined || m.rating === null || m.rating < 0 || m.rating > 10) {
+      hasCritical = true;
+      errors.push(`Invalid Rating (${m.rating || 'Missing'})`);
+    }
+
+    // Duration
+    if (!m.duration) {
+      hasCritical = true;
+      errors.push('Missing Duration');
+    }
+
+    // Genres
+    if (!m.genres || !Array.isArray(m.genres) || m.genres.length === 0) {
+      hasCritical = true;
+      errors.push('Missing/Empty Genres');
+    }
+
+    // Cast
+    if (!m.cast || !Array.isArray(m.cast) || m.cast.length === 0) {
+      hasWarning = true;
+      errors.push('Empty Cast Array');
+    }
+
+    // Trailer ID checks
+    const yt = m.youtubeId || '';
+    if (!yt.trim()) {
+      hasCritical = true;
+      missingTrailers.push(m.title);
+      errors.push('Missing Trailer ID');
+    } else {
+      if (yt.length !== 11 || /youtube\.com|youtu\.be/i.test(yt) || !/^[a-zA-Z0-9_-]{11}$/.test(yt)) {
+        hasCritical = true;
+        invalidTrailers.push({ title: m.title, youtubeId: yt });
+        errors.push(`Invalid Trailer ID (${yt})`);
+      }
+      if (ytSeen.has(yt)) {
+        hasCritical = true;
+        errors.push(`Duplicate Trailer ID (${yt})`);
+      } else {
+        ytSeen.set(yt, m.title);
+      }
+    }
+
+    // Poster & Backdrop checks
+    if (!m.poster?.url || !/^https?:\/\//.test(m.poster.url)) {
+      hasCritical = true;
+      missingPosters.push(m.title);
+      errors.push('Missing/Invalid Poster URL');
+    }
+    if (!m.backdrop?.url || !/^https?:\/\//.test(m.backdrop.url)) {
+      hasCritical = true;
+      missingBackdrops.push(m.title);
+      errors.push('Missing/Invalid Backdrop URL');
+    }
+
+    // Duplicate title + year
+    const key = `${m.title?.toLowerCase()}|${m.year}`;
+    if (titleYearSeen.has(key)) {
+      hasCritical = true;
+      duplicateTitles.push(`${m.title} (${m.year})`);
+      errors.push(`Duplicate title+year combination`);
+    } else {
+      titleYearSeen.set(key, true);
+    }
+
+    if (errors.length > 0) {
+      metadataErrors.push({ title: m.title, errors });
+    }
+
+    if (hasCritical) {
+      criticalCount++;
+    } else if (hasWarning) {
+      warningCount++;
+    } else {
+      healthyCount++;
+    }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      totalMovies: movies.length,
+      healthyMovies: healthyCount,
+      moviesWithWarnings: warningCount,
+      moviesWithCriticalErrors: criticalCount,
+      missingTrailersCount: missingTrailers.length,
+      invalidTrailersCount: invalidTrailers.length,
+      missingPostersCount: missingPosters.length,
+      missingBackdropsCount: missingBackdrops.length,
+      duplicateTitlesCount: duplicateTitles.length,
+      metadataErrorsCount: metadataErrors.length,
+      lists: {
+        missingTrailers,
+        invalidTrailers,
+        missingPosters,
+        missingBackdrops,
+        duplicateTitles,
+        metadataErrors,
+      }
+    }
+  });
+});
