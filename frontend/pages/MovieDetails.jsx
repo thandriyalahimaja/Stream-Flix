@@ -78,12 +78,22 @@ export default function MovieDetails() {
     setIsPlayingTrailer(false);
   }, [loadMovieData]);
 
-  // View delay tracking: record view after staying 5 seconds on details page
+  // View delay tracking: record view after staying 5 seconds on details page (deduplicated to prevent refresh/cross-tab exploits)
   useEffect(() => {
     if (!id) return;
+    
+    // Check localStorage to prevent duplicate views in 24 hours (refresh & cross-tab exploit prevention)
+    const viewedKey = `viewed_${id}`;
+    const lastViewed = localStorage.getItem(viewedKey);
+    const now = Date.now();
+    if (lastViewed && now - Number(lastViewed) < 24 * 60 * 60 * 1000) {
+      return;
+    }
+
     const timer = setTimeout(async () => {
       try {
         await movieService.recordView(id);
+        localStorage.setItem(viewedKey, String(Date.now()));
       } catch {
         // View recording failure is silent and non-intrusive
       }

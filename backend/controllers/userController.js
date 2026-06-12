@@ -102,43 +102,63 @@ export const addToWatchHistory = asyncHandler(async (req, res) => {
  */
 export const toggleLike = asyncHandler(async (req, res) => {
   const { movieId } = req.params;
-  const user = await User.findById(req.user.id);
+  const userId = req.user.id;
 
-  // Safe ObjectId comparison using String() coercion
-  const likedIndex = user.likedMovies.findIndex(
-    (id) => String(id) === String(movieId)
-  );
-  const dislikedIndex = user.dislikedMovies.findIndex(
-    (id) => String(id) === String(movieId)
-  );
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'User not found.');
+
+  // Clean up any potential duplicates in lists
+  user.likedMovies = Array.from(new Set(user.likedMovies.filter(Boolean).map(id => String(id))));
+  user.dislikedMovies = Array.from(new Set(user.dislikedMovies.filter(Boolean).map(id => String(id))));
+
+  const isLiked = user.likedMovies.includes(String(movieId));
+  const isDisliked = user.dislikedMovies.includes(String(movieId));
 
   let action;
 
-  if (likedIndex > -1) {
-    // Movie is already liked — remove the like (toggle off)
-    user.likedMovies.splice(likedIndex, 1);
-    await Movie.findByIdAndUpdate(movieId, { $inc: { likes: -1 } });
-    action = 'unliked';
-  } else {
-    // Like the movie
-    user.likedMovies.push(movieId);
-    await Movie.findByIdAndUpdate(movieId, { $inc: { likes: 1 } });
-
-    // Remove dislike if the user had previously disliked this movie
-    if (dislikedIndex > -1) {
-      user.dislikedMovies.splice(dislikedIndex, 1);
-      await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: -1 } });
+  if (isLiked) {
+    // Unlike atomically
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, likedMovies: movieId },
+      { $pull: { likedMovies: movieId } },
+      { new: true }
+    );
+    if (updatedUser) {
+      await Movie.findByIdAndUpdate(movieId, { $inc: { likes: -1 } });
+      action = 'unliked';
+    } else {
+      action = 'unliked';
     }
-    action = 'liked';
-    await Activity.create({
-      user: req.user.id,
-      type: 'like',
-      movie: movieId,
-    });
+  } else {
+    // Like atomically
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, likedMovies: { $ne: movieId } },
+      { $addToSet: { likedMovies: movieId }, $pull: { dislikedMovies: movieId } },
+      { new: true }
+    );
+    if (updatedUser) {
+      await Movie.findByIdAndUpdate(movieId, { $inc: { likes: 1 } });
+      if (isDisliked) {
+        await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: -1 } });
+      }
+      action = 'liked';
+
+      // Record activity if not already present
+      const existingActivity = await Activity.findOne({ user: userId, type: 'like', movie: movieId });
+      if (!existingActivity) {
+        await Activity.create({
+          user: userId,
+          type: 'like',
+          movie: movieId,
+        });
+      }
+    } else {
+      action = 'liked';
+    }
   }
 
-  await user.save();
-  res.json({ success: true, action, likedMovies: user.likedMovies });
+  const finalUser = await User.findById(userId);
+  res.json({ success: true, action, likedMovies: finalUser.likedMovies });
 });
 
 /**
@@ -148,38 +168,53 @@ export const toggleLike = asyncHandler(async (req, res) => {
  */
 export const toggleDislike = asyncHandler(async (req, res) => {
   const { movieId } = req.params;
-  const user = await User.findById(req.user.id);
+  const userId = req.user.id;
 
-  // Safe ObjectId comparison using String() coercion
-  const dislikedIndex = user.dislikedMovies.findIndex(
-    (id) => String(id) === String(movieId)
-  );
-  const likedIndex = user.likedMovies.findIndex(
-    (id) => String(id) === String(movieId)
-  );
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'User not found.');
+
+  // Clean up any potential duplicates in lists
+  user.likedMovies = Array.from(new Set(user.likedMovies.filter(Boolean).map(id => String(id))));
+  user.dislikedMovies = Array.from(new Set(user.dislikedMovies.filter(Boolean).map(id => String(id))));
+
+  const isLiked = user.likedMovies.includes(String(movieId));
+  const isDisliked = user.dislikedMovies.includes(String(movieId));
 
   let action;
 
-  if (dislikedIndex > -1) {
-    // Movie is already disliked — remove the dislike (toggle off)
-    user.dislikedMovies.splice(dislikedIndex, 1);
-    await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: -1 } });
-    action = 'undisliked';
-  } else {
-    // Dislike the movie
-    user.dislikedMovies.push(movieId);
-    await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: 1 } });
-
-    // Remove like if the user had previously liked this movie
-    if (likedIndex > -1) {
-      user.likedMovies.splice(likedIndex, 1);
-      await Movie.findByIdAndUpdate(movieId, { $inc: { likes: -1 } });
+  if (isDisliked) {
+    // Undislike atomically
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, dislikedMovies: movieId },
+      { $pull: { dislikedMovies: movieId } },
+      { new: true }
+    );
+    if (updatedUser) {
+      await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: -1 } });
+      action = 'undisliked';
+    } else {
+      action = 'undisliked';
     }
-    action = 'disliked';
+  } else {
+    // Dislike atomically
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, dislikedMovies: { $ne: movieId } },
+      { $addToSet: { dislikedMovies: movieId }, $pull: { likedMovies: movieId } },
+      { new: true }
+    );
+    if (updatedUser) {
+      await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: 1 } });
+      if (isLiked) {
+        await Movie.findByIdAndUpdate(movieId, { $inc: { likes: -1 } });
+      }
+      action = 'disliked';
+    } else {
+      action = 'disliked';
+    }
   }
 
-  await user.save();
-  res.json({ success: true, action, dislikedMovies: user.dislikedMovies });
+  const finalUser = await User.findById(userId);
+  res.json({ success: true, action, dislikedMovies: finalUser.dislikedMovies });
 });
 
 /**

@@ -68,8 +68,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const addGenresToMap = (movies) => {
     movies.forEach((m) => {
       if (m && Array.isArray(m.genres)) {
-        m.genres.forEach((g) => {
-          interestGenreMap[g] = (interestGenreMap[g] || 0) + 1;
+        const uniqueGenres = new Set(m.genres.map(g => String(g).trim()));
+        uniqueGenres.forEach((g) => {
+          if (g) {
+            interestGenreMap[g] = (interestGenreMap[g] || 0) + 1;
+          }
         });
       }
     });

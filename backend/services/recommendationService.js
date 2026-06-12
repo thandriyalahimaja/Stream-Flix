@@ -32,8 +32,12 @@ function buildGenreFrequencyMap(movies) {
   const genreMap = {};
   movies.forEach((movie) => {
     if (!movie || !Array.isArray(movie.genres)) return;
-    movie.genres.forEach((genre) => {
-      genreMap[genre] = (genreMap[genre] || 0) + 1;
+    // Deduplicate genres for this movie to avoid counting the same genre multiple times for one movie
+    const uniqueGenres = new Set(movie.genres.map(g => String(g).trim()));
+    uniqueGenres.forEach((genre) => {
+      if (genre) {
+        genreMap[genre] = (genreMap[genre] || 0) + 1;
+      }
     });
   });
   return genreMap;
@@ -54,7 +58,11 @@ function buildGenreFrequencyMap(movies) {
 function scoreMovieForUser(candidateMovie, genreInterestMap) {
   let relevanceScore = 0;
 
-  candidateMovie.genres.forEach((genre) => {
+  if (!candidateMovie || !Array.isArray(candidateMovie.genres)) return 0;
+
+  // Deduplicate genres in candidate movie to avoid counting duplicate genres twice
+  const uniqueGenres = new Set(candidateMovie.genres.map(g => String(g).trim()));
+  uniqueGenres.forEach((genre) => {
     if (genreInterestMap[genre]) {
       // Weight by how frequently this genre appears in the user's history
       relevanceScore += 2 * genreInterestMap[genre];
@@ -101,7 +109,8 @@ export function getRecommendations({
   const seenMovieIds = new Set([...reviewedMovieIds, ...likedMovieIds]);
 
   // Build genre frequency maps for all signals
-  const preferenceMovies = preferredGenres.map((genre) => ({ genres: [genre] }));
+  const uniquePreferredGenres = Array.from(new Set(preferredGenres.filter(Boolean).map(g => String(g).trim())));
+  const preferenceMovies = uniquePreferredGenres.map((genre) => ({ genres: [genre] }));
   const likedGenreMap = buildGenreFrequencyMap(likedMovies.filter(Boolean));
   // Deduplicate trailer starts to only count each movie once
   const uniqueWatchedMovies = [];
@@ -149,12 +158,15 @@ export function getRecommendations({
     combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 1;
   });
 
-  // If the user has no interaction history, fall back to top-rated movies
+  // If the user has no interaction history, fall back to top-rated movies (stable sorting)
   const hasUserSignals = Object.keys(combinedGenreMap).length > 0;
   if (!hasUserSignals) {
     return allMovies
       .filter((movie) => !seenMovieIds.has(String(movie._id)))
-      .sort((movieA, movieB) => movieB.rating - movieA.rating)
+      .sort((movieA, movieB) => {
+        if (movieB.rating !== movieA.rating) return movieB.rating - movieA.rating;
+        return String(movieA._id).localeCompare(String(movieB._id));
+      })
       .slice(0, limit);
   }
 
@@ -167,10 +179,11 @@ export function getRecommendations({
     }))
     .filter(({ score }) => score > 0);
 
-  // Sort by score descending, use rating as tiebreaker
+  // Sort by score descending, use rating as tiebreaker, and movie ID for stable deterministic sorting
   scoredMovies.sort((itemA, itemB) => {
     if (itemB.score !== itemA.score) return itemB.score - itemA.score;
-    return itemB.movie.rating - itemA.movie.rating;
+    if (itemB.movie.rating !== itemA.movie.rating) return itemB.movie.rating - itemA.movie.rating;
+    return String(itemA.movie._id).localeCompare(String(itemB.movie._id));
   });
 
   return scoredMovies.slice(0, limit).map(({ movie }) => movie);

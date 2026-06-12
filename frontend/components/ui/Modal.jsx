@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 /**
- * Portal-based modal with backdrop blur and animated enter/exit.
+ * Portal-based modal with backdrop blur, animated enter/exit,
+ * focus trapping, Escape key handling, and ARIA roles for accessibility.
  */
 export function Modal({
   open,
@@ -15,6 +16,8 @@ export function Modal({
   size = 'md',
   className,
 }) {
+  const modalRef = useRef(null);
+
   // Lock body scroll when open
   useEffect(() => {
     if (open) {
@@ -30,6 +33,44 @@ export function Modal({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
+
+  // Accessibility Focus Trap & Initial Focus
+  useEffect(() => {
+    if (!open || !modalRef.current) return;
+
+    // Find all focusable elements within the modal
+    const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusableElements = modalRef.current.querySelectorAll(focusableSelectors);
+
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    // Focus the first element (e.g. close button or first input field)
+    firstElement.focus();
+
+    const handleTabKey = (e) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        // Shift + Tab (go backwards)
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        // Tab (go forwards)
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
+  }, [open]);
 
   const sizeClasses = {
     sm: 'max-w-sm',
@@ -54,12 +95,16 @@ export function Modal({
 
           {/* Content */}
           <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title || 'Modal Dialog'}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className={cn(
-              'relative w-full rounded-2xl p-6 shadow-2xl',
+              'relative w-full rounded-2xl p-6 shadow-2xl focus:outline-none',
               sizeClasses[size],
               className
             )}
@@ -74,7 +119,7 @@ export function Modal({
                 {onClose && (
                   <button
                     onClick={onClose}
-                    className="p-1.5 rounded-lg hover:opacity-70 transition-opacity"
+                    className="p-1.5 rounded-lg hover:opacity-70 transition-opacity focus:ring-2 focus:ring-[#3b82f6] outline-none"
                     style={{ color: 'var(--cw-text2)' }}
                     aria-label="Close modal"
                   >

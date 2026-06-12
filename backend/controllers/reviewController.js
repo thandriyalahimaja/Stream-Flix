@@ -34,25 +34,41 @@ export const create = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Rating must be between 1 and 10.');
   }
 
-  let review = await Review.findOne({ user: req.user.id, movie: movieId });
-
-  if (review) {
-    review.rating = rating;
-    review.content = content || '';
-    await review.save();
-  } else {
-    review = await Review.create({
-      user: req.user.id,
-      movie: movieId,
-      rating,
-      content: content || '',
-    });
-    // Log review activity
-    await Activity.create({
-      user: req.user.id,
-      type: 'review',
-      movie: movieId,
-    });
+  let review;
+  try {
+    review = await Review.findOne({ user: req.user.id, movie: movieId });
+    if (review) {
+      review.rating = rating;
+      review.content = content || '';
+      await review.save();
+    } else {
+      review = await Review.create({
+        user: req.user.id,
+        movie: movieId,
+        rating,
+        content: content || '',
+      });
+      // Log review activity
+      await Activity.create({
+        user: req.user.id,
+        type: 'review',
+        movie: movieId,
+      });
+    }
+  } catch (error) {
+    if (error.code === 11000) {
+      // Concurrency conflict: review was created by concurrent request. Update it.
+      review = await Review.findOne({ user: req.user.id, movie: movieId });
+      if (review) {
+        review.rating = rating;
+        review.content = content || '';
+        await review.save();
+      } else {
+        throw error;
+      }
+    } else {
+      throw error;
+    }
   }
 
   // Recalculate movie aggregate rating
