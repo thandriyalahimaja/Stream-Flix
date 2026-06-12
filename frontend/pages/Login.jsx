@@ -92,9 +92,6 @@ export default function Login() {
             <label className="flex items-center gap-2" style={{ color: 'var(--cw-text2)' }}>
               <input type="checkbox" className="rounded" /> Remember me
             </label>
-            <a style={{ color: 'var(--cw-button)' }} className="cursor-pointer hover:underline">
-              Forgot password?
-            </a>
           </div>
 
           <Button type="submit" className="w-full" size="lg" loading={loading}>

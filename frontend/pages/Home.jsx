@@ -11,6 +11,7 @@ import { getGreeting } from '@/utils/formatters';
 import { moviePath } from '@/constants/routes';
 import { useAuth } from '@/context/AuthContext';
 import { useWatchlist } from '@/context/WatchlistContext';
+import { useToast } from '@/context/ToastContext';
 import { Skeleton, MovieRowSkeleton } from '@/components/ui/Skeleton';
 import movieService from '@/services/movieService';
 import userService from '@/services/userService';
@@ -18,8 +19,10 @@ import ErrorState from '@/components/ErrorState';
 
 export default function Home() {
   const { user } = useAuth();
-  const { toggle: toggleWatchlist, isInWatchlist } = useWatchlist();
+  const { toggle: toggleWatchlistRaw, isInWatchlist } = useWatchlist();
+  const toast = useToast();
 
+  const [isWatchlistPending, setIsWatchlistPending] = useState(false);
   const [moviesList, setMoviesList] = useState([]);
   const [trending, setTrending] = useState([]);
   const [recommended, setRecommended] = useState([]);
@@ -28,6 +31,22 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   const userName = user?.name?.split(' ')[0] || 'cinephile';
+
+  const handleToggleWatchlist = async (movieId, movieTitle) => {
+    if (!user) {
+      toast.warning('Please sign in to manage your watchlist.');
+      return;
+    }
+    if (isWatchlistPending) return;
+    setIsWatchlistPending(true);
+    try {
+      await toggleWatchlistRaw(movieId, movieTitle);
+    } catch {
+      // quiet fail
+    } finally {
+      setIsWatchlistPending(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -171,7 +190,8 @@ export default function Home() {
                     variant="secondary"
                     size="lg"
                     icon={isInWatchlist(hero._id) ? <Check size={18} /> : <Plus size={18} />}
-                    onClick={() => toggleWatchlist(hero._id)}
+                    onClick={() => handleToggleWatchlist(hero._id, hero.title)}
+                    disabled={isWatchlistPending}
                   >
                     {isInWatchlist(hero._id) ? 'In Watchlist' : 'Watchlist'}
                   </Button>

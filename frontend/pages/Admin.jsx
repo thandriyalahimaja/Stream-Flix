@@ -32,6 +32,11 @@ export default function Admin() {
   const [userPage, setUserPage] = useState(1);
   const [userPages, setUserPages] = useState(1);
 
+  // Delete Confirmation Modal States
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Movie Form Modal States
   const [isMovieModalOpen, setIsMovieModalOpen] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null); // null means "Create", otherwise "Edit"
@@ -214,19 +219,17 @@ export default function Admin() {
     }
   };
 
-  // Delete Movie
-  const handleDeleteMovie = async (movieId) => {
-    if (!window.confirm('Are you sure you want to delete this film? This will also delete reviews and Cloudinary media assets.')) return;
-    try {
-      const res = await movieService.delete(movieId);
-      if (res.success) {
-        toast.success('Film deleted successfully.');
-        loadMovies();
-        loadStats();
-      }
-    } catch (err) {
-      toast.error(err.message || 'Error deleting movie.');
-    }
+  // Delete Movie (triggers custom modal)
+  const handleDeleteMovie = (movieId) => {
+    const movie = moviesList.find((m) => m._id === movieId);
+    const title = movie ? movie.title : 'this film';
+    setDeleteTarget({
+      type: 'movie',
+      id: movieId,
+      name: title,
+      message: `Are you sure you want to delete "${title}"? This will permanently delete the film, all its user reviews, and all associated media assets.`
+    });
+    setDeleteConfirmOpen(true);
   };
 
   // Update User Role
@@ -243,18 +246,45 @@ export default function Admin() {
     }
   };
 
-  // Delete User
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user? This cascades and deletes their watchlist, reviews, activity, and Cloudinary avatar.')) return;
+  // Delete User (triggers custom modal)
+  const handleDeleteUser = (userId) => {
+    const userItem = users.find((u) => u._id === userId);
+    const userName = userItem ? userItem.name : 'this user';
+    setDeleteTarget({
+      type: 'user',
+      id: userId,
+      name: userName,
+      message: `Are you sure you want to delete the user "${userName}"? This cascades and deletes their watchlist, reviews, activity, and Cloudinary avatar.`
+    });
+    setDeleteConfirmOpen(true);
+  };
+
+  // Execute delete after custom modal confirmation
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await adminService.deleteUser(userId);
-      if (res.success) {
-        toast.success('User deleted successfully.');
-        loadUsers();
-        loadStats();
+      if (deleteTarget.type === 'movie') {
+        const res = await movieService.delete(deleteTarget.id);
+        if (res.success) {
+          toast.success('Film deleted successfully.');
+          loadMovies();
+          loadStats();
+        }
+      } else if (deleteTarget.type === 'user') {
+        const res = await adminService.deleteUser(deleteTarget.id);
+        if (res.success) {
+          toast.success('User deleted successfully.');
+          loadUsers();
+          loadStats();
+        }
       }
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
     } catch (err) {
-      toast.error(err.message || 'Failed to delete user.');
+      toast.error(err.message || `Error deleting ${deleteTarget.type}.`);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -866,6 +896,38 @@ export default function Admin() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={() => !deleting && setDeleteConfirmOpen(false)}
+        title="Are you sure?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--cw-text2)' }}>
+            {deleteTarget?.message}
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={deleting}
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              loading={deleting}
+              onClick={executeDelete}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </AdminLayout>
   );

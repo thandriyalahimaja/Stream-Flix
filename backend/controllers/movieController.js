@@ -187,6 +187,7 @@ export const update = asyncHandler(async (req, res) => {
  * Admin only — deletes a movie and cleans up all associated data:
  * - Cloudinary poster and backdrop assets
  * - All reviews for the movie
+ * - User interactions (likedMovies, dislikedMovies, watchHistory)
  */
 export const remove = asyncHandler(async (req, res) => {
   const movie = await Movie.findById(req.params.id);
@@ -203,5 +204,38 @@ export const remove = asyncHandler(async (req, res) => {
   await Review.deleteMany({ movie: req.params.id });
   await Watchlist.deleteMany({ movie: req.params.id });
 
-  res.json({ success: true, message: 'Movie and all associated reviews deleted.' });
+  // Cascade cleanup: remove movie reference from user profiles
+  const User = (await import('../models/User.js')).default;
+  await User.updateMany(
+    {},
+    {
+      $pull: {
+        likedMovies: req.params.id,
+        dislikedMovies: req.params.id,
+        watchHistory: { movie: req.params.id }
+      }
+    }
+  );
+
+  res.json({ success: true, message: 'Movie and all associated reviews and interactions deleted.' });
+});
+
+/**
+ * GET /api/movies/:id/similar
+ * Returns up to 6 movies sharing genres with the target movie.
+ */
+export const getSimilar = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    throw new ApiError(404, 'Movie not found (invalid ID format).');
+  }
+
+  const movie = await Movie.findById(req.params.id);
+  if (!movie) throw new ApiError(404, 'Movie not found.');
+
+  const similarMovies = await Movie.find({
+    _id: { $ne: movie._id },
+    genres: { $in: movie.genres || [] }
+  }).limit(6);
+
+  res.json({ success: true, data: similarMovies });
 });

@@ -31,7 +31,7 @@ export default function MovieDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, updateUserProfile } = useAuth();
-  const { toggle: toggleWatchlist, isInWatchlist } = useWatchlist();
+  const { toggle: toggleWatchlistRaw, isInWatchlist } = useWatchlist();
   const toast = useToast();
 
 
@@ -40,6 +40,7 @@ export default function MovieDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [isPending, setIsPending] = useState(false);
 
   // Review states
   const [reviews, setReviews] = useState([]);
@@ -47,6 +48,7 @@ export default function MovieDetails() {
   const [newComment, setNewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState(null);
+
 
   // Load movie details and its related movies
   const loadMovieData = useCallback(async () => {
@@ -58,17 +60,10 @@ export default function MovieDetails() {
         setMovie(res.data);
         setReviews(res.data.reviews || []);
 
-        // Find similar movies from the catalog based on shared genres
-        const allMoviesRes = await movieService.getAll();
-        if (allMoviesRes.success && allMoviesRes.data) {
-          const similarMovies = allMoviesRes.data
-            .filter(
-              (candidate) =>
-                candidate._id !== res.data._id &&
-                (candidate.genres || []).some((genre) => (res.data.genres || []).includes(genre))
-            )
-            .slice(0, 6);
-          setRelatedMovies(similarMovies);
+        // Find similar movies from the backend endpoint
+        const similarRes = await movieService.getSimilar(id);
+        if (similarRes.success && similarRes.data) {
+          setRelatedMovies(similarRes.data);
         }
       }
     } catch (err) {
@@ -85,12 +80,14 @@ export default function MovieDetails() {
 
   // Play trailer and log watch progress to the database
   const handlePlayTrailer = async () => {
+    if (isPending) return;
     if (!movie?.youtubeId) {
       toast.warning('Trailer is currently unavailable.');
       return;
     }
     setIsPlayingTrailer(true);
     if (user && movie) {
+      setIsPending(true);
       try {
         // Record watch history at 45% progress to demonstrate "Continue Watching" feature
         await userService.addToWatchHistory({ movieId: movie._id, progress: 45 });
@@ -98,6 +95,8 @@ export default function MovieDetails() {
         if (meRes.success) updateUserProfile(meRes.user);
       } catch {
         // Watch history update failure is non-critical — trailer still plays
+      } finally {
+        setIsPending(false);
       }
     }
   };
@@ -108,6 +107,8 @@ export default function MovieDetails() {
       toast.warning('Please sign in to rate this film.');
       return;
     }
+    if (isPending) return;
+    setIsPending(true);
 
     try {
       const res = await userService.toggleLike(movie._id);
@@ -146,6 +147,8 @@ export default function MovieDetails() {
       }
     } catch {
       // Like toggle failure — UI will revert on next data fetch
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -155,6 +158,9 @@ export default function MovieDetails() {
       toast.warning('Please sign in to rate this film.');
       return;
     }
+    if (isPending) return;
+    setIsPending(true);
+
     try {
       const res = await userService.toggleDislike(movie._id);
       if (res.success) {
@@ -192,6 +198,25 @@ export default function MovieDetails() {
       }
     } catch {
       // Dislike toggle failure — non-critical
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  // Toggle watchlist — disable clicks during request to prevent spam
+  const handleToggleWatchlist = async () => {
+    if (!user) {
+      toast.warning('Please sign in to manage your watchlist.');
+      return;
+    }
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await toggleWatchlistRaw(movie._id, movie.title);
+    } catch {
+      // Toggle failure already toasted by WatchlistContext
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -311,20 +336,22 @@ export default function MovieDetails() {
             </div>
 
             <div className="flex flex-wrap gap-3 mt-7">
-              <Button size="lg" onClick={handlePlayTrailer} icon={<Play size={18} fill="white" />}>
+              <Button size="lg" onClick={handlePlayTrailer} icon={<Play size={18} fill="white" />} disabled={isPending}>
                 Play Trailer
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 icon={isInUserWatchlist ? <Check size={18} /> : <Plus size={18} />}
-                onClick={() => toggleWatchlist(movie._id)}
+                onClick={handleToggleWatchlist}
+                disabled={isPending}
               >
                 {isInUserWatchlist ? 'In Watchlist' : 'Watchlist'}
               </Button>
               <button
                 onClick={handleLike}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                disabled={isPending}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   background: isLiked ? 'var(--cw-button)' : 'var(--cw-card)',
                   color: isLiked ? 'white' : 'var(--cw-text)',
@@ -336,7 +363,8 @@ export default function MovieDetails() {
               </button>
               <button
                 onClick={handleDislike}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                disabled={isPending}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   background: isDisliked ? 'var(--cw-button)' : 'var(--cw-card)',
                   color: isDisliked ? 'white' : 'var(--cw-text)',
@@ -412,10 +440,11 @@ export default function MovieDetails() {
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <motion.button
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.95 }}
+                        whileHover={{ scale: isPending ? 1 : 1.08 }}
+                        whileTap={{ scale: isPending ? 1 : 0.95 }}
                         onClick={handlePlayTrailer}
-                        className="w-20 h-20 rounded-full flex items-center justify-center"
+                        disabled={isPending}
+                        className="w-20 h-20 rounded-full flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                         style={{ background: 'var(--cw-button)', boxShadow: '0 0 40px var(--cw-button)' }}
                         aria-label="Play trailer"
                       >

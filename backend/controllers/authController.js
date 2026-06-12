@@ -164,10 +164,6 @@ export const getMe = asyncHandler(async (req, res) => {
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  if (!newPassword || newPassword.length < 6) {
-    throw new ApiError(400, 'New password must be at least 6 characters.');
-  }
-
   const user = await User.findById(req.user.id).select('+password');
   if (!user) throw new ApiError(404, 'User not found.');
 

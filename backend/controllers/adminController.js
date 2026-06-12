@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Movie from '../models/Movie.js';
 import Review from '../models/Review.js';
@@ -143,6 +144,10 @@ export const deleteUser = asyncHandler(async (req, res) => {
     await deleteAsset(user.avatar.publicId, 'image');
   }
 
+  // Pre-query the user's reviews to identify affected movies
+  const userReviews = await Review.find({ user: user._id });
+  const movieIds = userReviews.map((r) => r.movie);
+
   // Cascade delete all user-related data in parallel
   await Promise.all([
     Watchlist.deleteMany({ user: user._id }),
@@ -151,5 +156,21 @@ export const deleteUser = asyncHandler(async (req, res) => {
     User.findByIdAndDelete(user._id),
   ]);
 
-  res.json({ success: true, message: 'User and all associated data deleted.' });
+  // Recalculate movie statistics for any movies reviewed by this user
+  if (movieIds.length > 0) {
+    const uniqueMovieIds = [...new Set(movieIds.map((id) => id.toString()))];
+    for (const movieId of uniqueMovieIds) {
+      const agg = await Review.aggregate([
+        { $match: { movie: new mongoose.Types.ObjectId(movieId) } },
+        { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+      ]);
+
+      await Movie.findByIdAndUpdate(movieId, {
+        avgUserRating: agg.length ? Math.round(agg[0].avg * 10) / 10 : 0,
+        reviewCount: agg.length ? agg[0].count : 0,
+      });
+    }
+  }
+
+  res.json({ success: true, message: 'User and all associated data deleted, and movie ratings recalculated.' });
 });

@@ -8,6 +8,7 @@ import { env } from './config/env.js';
 import { maybeRunMovieSync } from './seed/syncMovies.js';
 import { maybeRunAdminSeed } from './seed/seedAdmin.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/authRoutes.js';
 import movieRoutes from './routes/movieRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -55,6 +56,9 @@ app.use(
 
 // Cross-origin resource sharing — allow frontend origin with credentials
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+
+// General API rate limiting for platform endpoints
+app.use('/api', apiLimiter);
 
 // HTTP request logging — concise in production, verbose in development
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
