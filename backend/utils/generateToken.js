@@ -20,7 +20,7 @@ export function setRefreshCookie(res, token) {
   res.cookie('refreshToken', token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     path: '/',
   });
@@ -33,7 +33,7 @@ export function clearRefreshCookie(res) {
   res.cookie('refreshToken', '', {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 0,
     path: '/',
   });
