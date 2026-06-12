@@ -10,6 +10,8 @@ dotenv.config();
 
 import Movie from '../models/Movie.js';
 
+export const CURRENT_SEED_VERSION = '2026-06-streamflix-v2';
+
 export const movieCatalog = [
   {
     "title": "Spider-Man: Across the Spider-Verse",
