@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Watchlist from '../models/Watchlist.js';
 import Review from '../models/Review.js';
 import Movie from '../models/Movie.js';
+import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -68,7 +69,7 @@ export const getWatchHistory = asyncHandler(async (req, res) => {
  * Records or updates a watch event. Updates progress if the movie was already watched.
  */
 export const addToWatchHistory = asyncHandler(async (req, res) => {
-  const { movieId, progress = 0 } = req.body;
+  const { movieId } = req.body;
   const user = await User.findById(req.user.id);
 
   const existingEntry = user.watchHistory.find(
@@ -76,16 +77,21 @@ export const addToWatchHistory = asyncHandler(async (req, res) => {
   );
 
   if (existingEntry) {
-    existingEntry.progress = progress;
     existingEntry.watchedAt = new Date();
   } else {
-    user.watchHistory.push({ movie: movieId, progress });
+    user.watchHistory.push({ movie: movieId, startedTrailer: true });
   }
 
   await user.save();
-  await Movie.findByIdAndUpdate(movieId, { $inc: { views: 1 } });
 
-  res.json({ success: true, message: 'Watch history updated.' });
+  // Log activity of type 'watch' (Trailer play) for recent activity feed
+  await Activity.create({
+    user: req.user.id,
+    type: 'watch',
+    movie: movieId,
+  });
+
+  res.json({ success: true, message: 'Trailer start recorded.' });
 });
 
 /**
@@ -123,6 +129,11 @@ export const toggleLike = asyncHandler(async (req, res) => {
       await Movie.findByIdAndUpdate(movieId, { $inc: { dislikes: -1 } });
     }
     action = 'liked';
+    await Activity.create({
+      user: req.user.id,
+      type: 'like',
+      movie: movieId,
+    });
   }
 
   await user.save();
@@ -228,7 +239,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     const daysAgo = (now - new Date(entry.watchedAt)) / (1000 * 60 * 60 * 24);
     if (daysAgo <= 7) {
       const dayIndex = new Date(entry.watchedAt).getDay();
-      weeklyActivity[dayIndex].h += 2; // Approximate ~2 hours per viewed movie
+      weeklyActivity[dayIndex].h += 1; // 1 play count per event
     }
   });
 

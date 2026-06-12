@@ -21,16 +21,16 @@ const userSchema = new mongoose.Schema({
   watchHistory: [{
     movie: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie' },
     watchedAt: { type: Date, default: Date.now },
-    progress: { type: Number, default: 0, min: 0, max: 100 },
+    startedTrailer: { type: Boolean, default: true },
   }],
   likedMovies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }],
   dislikedMovies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }],
   refreshToken: { type: String, select: false },
 }, { timestamps: true });
 
-// Virtual: total watch time (rough estimate — 2h avg per entry)
+// Virtual: total watch time (now representing trailer starts count for capstone compliance)
 userSchema.virtual('totalWatchHours').get(function () {
-  return this.watchHistory ? Math.round(this.watchHistory.length * 2) : 0;
+  return this.watchHistory ? this.watchHistory.length : 0;
 });
 
 userSchema.set('toJSON', { virtuals: true });

@@ -15,6 +15,7 @@ const movieService = {
   create: (data) => api.post('/movies', data).then(normalizeMovieResponse),
   update: (id, data) => api.put(`/movies/${id}`, data).then(normalizeMovieResponse),
   delete: (id) => api.delete(`/movies/${id}`),
+  recordView: (id) => api.post(`/movies/${id}/view`),
 };
 
 export default movieService;

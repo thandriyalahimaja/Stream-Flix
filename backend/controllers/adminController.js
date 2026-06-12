@@ -26,6 +26,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
     totalWatchlistEntries,
     recentActivity,
     topMovies,
+    totalViewsRes,
+    trailerStartsRes,
+    totalLikesRes,
   ] = await Promise.all([
     User.countDocuments(),
     Movie.countDocuments(),
@@ -37,7 +40,22 @@ export const getDashboard = asyncHandler(async (req, res) => {
       .populate('user', 'name avatar')
       .populate('movie', 'title'),
     Movie.find().sort('-views').limit(5).select('title views likes rating'),
+    Movie.aggregate([
+      { $group: { _id: null, total: { $sum: '$views' } } }
+    ]),
+    User.aggregate([
+      { $project: { count: { $size: { $ifNull: ['$watchHistory', []] } } } },
+      { $group: { _id: null, total: { $sum: '$count' } } }
+    ]),
+    User.aggregate([
+      { $project: { count: { $size: { $ifNull: ['$likedMovies', []] } } } },
+      { $group: { _id: null, total: { $sum: '$count' } } }
+    ]),
   ]);
+
+  const totalViews = totalViewsRes[0]?.total || 0;
+  const totalTrailerStarts = trailerStartsRes[0]?.total || 0;
+  const totalLikes = totalLikesRes[0]?.total || 0;
 
   // Genre distribution across all movies in the catalog
   const genreDistribution = await Movie.aggregate([
@@ -71,6 +89,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
         count: item.count,
       })),
       monthlySignups,
+      totalViews,
+      totalTrailerStarts,
+      totalLikes,
     },
   });
 });

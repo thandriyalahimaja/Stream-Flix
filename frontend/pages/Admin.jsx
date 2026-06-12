@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, AreaChart, Area } from 'recharts';
-import { Plus, Edit2, Trash2, Users, Film, Star, MessageSquare, Calendar, Activity as ActivityIcon, UserCheck, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, Film, Star, MessageSquare, Calendar, Activity as ActivityIcon, UserCheck, ShieldAlert, ShieldCheck, Eye, ThumbsUp, Play } from 'lucide-react';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -347,10 +347,11 @@ export default function Admin() {
           /* Stat cards */
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
             {[
-              { label: 'Total members', value: stats?.userCount || 0, icon: <Users size={18} /> },
-              { label: 'Films in library', value: stats?.movieCount || 0, icon: <Film size={18} /> },
-              { label: 'Total reviews', value: stats?.reviewCount || 0, icon: <MessageSquare size={18} /> },
-              { label: 'Watchlists saved', value: stats?.watchlistEntries || 0, icon: <Star size={18} /> },
+              { label: 'Views', value: stats?.totalViews || 0, icon: <Eye size={18} /> },
+              { label: 'Trailer starts', value: stats?.totalTrailerStarts || 0, icon: <Play size={18} /> },
+              { label: 'Watchlist adds', value: stats?.watchlistEntries || 0, icon: <Star size={18} /> },
+              { label: 'Likes', value: stats?.totalLikes || 0, icon: <ThumbsUp size={18} /> },
+              { label: 'Reviews', value: stats?.reviewCount || 0, icon: <MessageSquare size={18} /> },
             ].map((statCard) => (
               <div key={statCard.label} className="rounded-2xl p-5" style={{ background: 'var(--cw-card)' }}>
                 <div className="flex justify-between" style={{ color: 'var(--cw-text2)' }}>

@@ -30,11 +30,6 @@ export const getAll = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * GET /api/movies/:id
- * Returns a single movie by ID including its 10 most recent reviews.
- * Also increments the movie's view count.
- */
 export const getById = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
     throw new ApiError(404, 'Movie not found (invalid ID format).');
@@ -43,16 +38,30 @@ export const getById = asyncHandler(async (req, res) => {
   const movie = await Movie.findById(req.params.id);
   if (!movie) throw new ApiError(404, 'Movie not found.');
 
-  // Track views
-  movie.views += 1;
-  await movie.save();
-
   const recentReviews = await Review.find({ movie: movie._id })
     .populate('user', 'name avatar')
     .sort('-createdAt')
     .limit(10);
 
   res.json({ success: true, data: { ...movie.toObject(), reviews: recentReviews } });
+});
+
+/**
+ * POST /api/movies/:id/view
+ * Increments the movie's view count after 5 seconds of client stay.
+ */
+export const recordView = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    throw new ApiError(404, 'Movie not found (invalid ID format).');
+  }
+
+  const movie = await Movie.findById(req.params.id);
+  if (!movie) throw new ApiError(404, 'Movie not found.');
+
+  movie.views += 1;
+  await movie.save();
+
+  res.json({ success: true, message: 'View count updated.' });
 });
 
 /**
@@ -118,23 +127,33 @@ export const getRecommended = asyncHandler(async (req, res) => {
   let preferredGenres = [];
   let likedMovies = [];
   let watchHistory = [];
+  let reviewedMovies = [];
+  let watchlistMovies = [];
 
   if (req.user) {
-    const userWithHistory = await User.findById(req.user.id)
-      .populate('likedMovies', 'genres rating _id')
-      .populate('watchHistory.movie', 'genres rating _id');
+    const [userWithHistory, userReviews, userWatchlist] = await Promise.all([
+      User.findById(req.user.id)
+        .populate('likedMovies', 'genres rating _id')
+        .populate('watchHistory.movie', 'genres rating _id'),
+      Review.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
+      Watchlist.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
+    ]);
 
     preferredGenres = userWithHistory?.preferences?.genres || [];
     likedMovies = (userWithHistory?.likedMovies || []).filter(Boolean);
     watchHistory = (userWithHistory?.watchHistory || []).filter(
       (entry) => entry && entry.movie
     );
+    reviewedMovies = userReviews.map((r) => r.movie).filter(Boolean);
+    watchlistMovies = userWatchlist.map((w) => w.movie).filter(Boolean);
   }
 
   const recommendedMovies = getRecommendations({
     preferredGenres,
     likedMovies,
     watchHistory,
+    reviewedMovies,
+    watchlistMovies,
     allMovies,
     limit: 12,
   });

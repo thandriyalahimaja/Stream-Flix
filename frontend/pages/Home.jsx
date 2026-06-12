@@ -79,11 +79,8 @@ export default function Home() {
         const historyRes = await userService.getWatchHistory();
         if (historyRes.success && historyRes.data) {
           const continueList = historyRes.data
-            .filter((h) => h.progress > 0 && h.progress < 100 && h.movie)
-            .map((h) => ({
-              ...h.movie,
-              progress: h.progress,
-            }));
+            .filter((h) => h.movie)
+            .map((h) => h.movie);
           setContinueWatching(continueList);
         }
       } else {
@@ -237,9 +234,9 @@ export default function Home() {
       {/* Movie Rows */}
       {continueWatching.length > 0 && (
         <MovieRow
-          title="Continue Watching"
+          title="Recently Played Trailers"
           movies={continueWatching}
-          hint="Pick up where you left off"
+          hint="Revisit your recently played trailer previews"
         />
       )}
 

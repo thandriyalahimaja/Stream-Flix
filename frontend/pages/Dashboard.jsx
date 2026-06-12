@@ -41,14 +41,7 @@ export default function Dashboard() {
       // Fetch watch history to build the "Continue Watching" & "Recently Viewed" rows
       const historyRes = await userService.getWatchHistory();
       if (historyRes.success && historyRes.data) {
-        const continueList = historyRes.data
-          .filter((h) => h.progress > 0 && h.progress < 100 && h.movie)
-          .map((h) => ({
-            ...h.movie,
-            progress: h.progress,
-          }));
-        setContinueWatching(continueList);
-
+        setContinueWatching([]);
         const viewedList = historyRes.data
           .filter((h) => h.movie)
           .map((h) => h.movie);
@@ -74,8 +67,8 @@ export default function Dashboard() {
   }
 
   const stats = [
-    { k: 'Stream Hours', v: `${dashboardData?.totalWatchHours || 0}h`, s: 'total stream time' },
-    { k: 'Films Completed', v: dashboardData?.watchHistoryCount || 0, s: 'completed views' },
+    { k: 'Trailer Plays', v: dashboardData?.totalWatchHours || 0, s: 'total starts' },
+    { k: 'Liked Titles', v: dashboardData?.likedCount || 0, s: 'total liked' },
     { k: 'Avg. Rating Given', v: dashboardData?.avgRating || '0.0', s: 'rating avg' },
     { k: 'Primary Genre', v: dashboardData?.topGenre || 'Sci-Fi', s: 'taste profiling' },
   ];
@@ -135,7 +128,7 @@ export default function Dashboard() {
               {/* Line chart */}
               <div className="lg:col-span-2 rounded-2xl p-6 border" style={{ background: 'var(--cw-card)', borderColor: 'color-mix(in srgb, var(--cw-text) 8%, transparent)' }}>
                 <div className="flex justify-between items-end mb-4">
-                  <h3 className="font-semibold" style={{ color: 'var(--cw-text)' }}>Weekly watch hours</h3>
+                  <h3 className="font-semibold" style={{ color: 'var(--cw-text)' }}>Weekly trailer plays</h3>
                   <span className="text-xs font-medium" style={{ color: 'var(--cw-text2)' }}>Last 7 days (MERN activity)</span>
                 </div>
                 <div className="h-[220px]">
@@ -225,9 +218,9 @@ export default function Dashboard() {
 
               {recentlyViewed.length > 0 && (
                 <MovieRow
-                  title="Recently Viewed"
+                  title="Trailer Play History"
                   movies={recentlyViewed}
-                  hint="Your film streaming history"
+                  hint="Your recently played trailer previews"
                 />
               )}
 

@@ -7,4 +7,11 @@ const activitySchema = new mongoose.Schema({
   meta: mongoose.Schema.Types.Mixed,
 }, { timestamps: true });
 
+activitySchema.virtual('action').get(function () {
+  return this.type;
+});
+
+activitySchema.set('toJSON', { virtuals: true });
+activitySchema.set('toObject', { virtuals: true });
+
 export default mongoose.model('Activity', activitySchema);

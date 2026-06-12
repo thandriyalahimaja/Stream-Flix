@@ -1,4 +1,5 @@
 import Watchlist from '../models/Watchlist.js';
+import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -12,6 +13,14 @@ export const addItem = asyncHandler(async (req, res) => {
   const exists = await Watchlist.findOne({ user: req.user.id, movie: movieId });
   if (exists) throw new ApiError(400, 'Already in watchlist.');
   const item = await Watchlist.create({ user: req.user.id, movie: movieId });
+
+  // Log watchlist activity
+  await Activity.create({
+    user: req.user.id,
+    type: 'watchlist',
+    movie: movieId,
+  });
+
   res.status(201).json({ success: true, data: item });
 });
 

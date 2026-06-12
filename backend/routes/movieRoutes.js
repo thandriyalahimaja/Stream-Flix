@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAll, getById, search, getByGenre, getTrending, getRecommended, getSimilar, create, update, remove } from '../controllers/movieController.js';
+import { getAll, getById, search, getByGenre, getTrending, getRecommended, getSimilar, create, update, remove, recordView } from '../controllers/movieController.js';
 import { auth, adminOnly, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -15,6 +15,9 @@ router.get('/recommended', optionalAuth, getRecommended);
 
 // Similar movies (must come before /:id)
 router.get('/:id/similar', getSimilar);
+
+// Record movie view after 5s
+router.post('/:id/view', recordView);
 
 // Must come after named routes
 router.get('/:id', getById);

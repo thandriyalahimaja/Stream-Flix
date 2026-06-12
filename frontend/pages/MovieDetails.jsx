@@ -78,7 +78,20 @@ export default function MovieDetails() {
     setIsPlayingTrailer(false);
   }, [loadMovieData]);
 
-  // Play trailer and log watch progress to the database
+  // View delay tracking: record view after staying 5 seconds on details page
+  useEffect(() => {
+    if (!id) return;
+    const timer = setTimeout(async () => {
+      try {
+        await movieService.recordView(id);
+      } catch {
+        // View recording failure is silent and non-intrusive
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [id]);
+
+  // Play trailer and log watch progress (trailer start) to the database
   const handlePlayTrailer = async () => {
     if (isPending) return;
     if (!movie?.youtubeId) {
@@ -89,8 +102,8 @@ export default function MovieDetails() {
     if (user && movie) {
       setIsPending(true);
       try {
-        // Record watch history at 45% progress to demonstrate "Continue Watching" feature
-        await userService.addToWatchHistory({ movieId: movie._id, progress: 45 });
+        // Record watch history (Trailer Play) on click
+        await userService.addToWatchHistory({ movieId: movie._id });
         const meRes = await authService.getMe();
         if (meRes.success) updateUserProfile(meRes.user);
       } catch {

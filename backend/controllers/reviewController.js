@@ -1,5 +1,6 @@
 import Review from '../models/Review.js';
 import Movie from '../models/Movie.js';
+import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -45,6 +46,12 @@ export const create = asyncHandler(async (req, res) => {
       movie: movieId,
       rating,
       content: content || '',
+    });
+    // Log review activity
+    await Activity.create({
+      user: req.user.id,
+      type: 'review',
+      movie: movieId,
     });
   }
 

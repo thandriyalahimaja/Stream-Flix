@@ -83,44 +83,59 @@ function scoreMovieForUser(candidateMovie, genreInterestMap) {
 export function getRecommendations({
   preferredGenres = [],
   likedMovies = [],
-  watchHistory = [],
+  watchHistory = [], // Represents Trailer Starts
+  reviewedMovies = [],
+  watchlistMovies = [],
   allMovies = [],
   limit = 12,
 }) {
   if (allMovies.length === 0) return [];
 
-  // Build the set of movie IDs the user has already interacted with
-  const watchedMovieIds = new Set(
-    watchHistory
-      .filter((entry) => entry && entry.movie)
-      .map((entry) => String(entry.movie._id || entry.movie))
+  // Exclude movies the user has already liked or reviewed
+  const reviewedMovieIds = new Set(
+    reviewedMovies.filter(Boolean).map((m) => String(m._id || m))
   );
-
   const likedMovieIds = new Set(
-    likedMovies.filter(Boolean).map((movie) => String(movie._id || movie))
+    likedMovies.filter(Boolean).map((m) => String(m._id || m))
   );
+  const seenMovieIds = new Set([...reviewedMovieIds, ...likedMovieIds]);
 
-  const seenMovieIds = new Set([...watchedMovieIds, ...likedMovieIds]);
-
-  // Build genre interest map with weighted signals
-  // Liked movies signal is stronger (× 2) than watch history (× 1)
+  // Build genre frequency maps for all signals
   const preferenceMovies = preferredGenres.map((genre) => ({ genres: [genre] }));
   const likedGenreMap = buildGenreFrequencyMap(likedMovies.filter(Boolean));
   const watchedGenreMap = buildGenreFrequencyMap(
     watchHistory.filter((e) => e && e.movie).map((e) => e.movie)
   );
+  const reviewedGenreMap = buildGenreFrequencyMap(reviewedMovies.filter(Boolean));
+  const watchlistGenreMap = buildGenreFrequencyMap(watchlistMovies.filter(Boolean));
   const preferenceGenreMap = buildGenreFrequencyMap(preferenceMovies);
 
   // Merge all genre signals into one weighted map
   const combinedGenreMap = {};
+  
+  // Weight 5: Reviews
+  Object.entries(reviewedGenreMap).forEach(([genre, count]) => {
+    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 5;
+  });
+
+  // Weight 4: Likes
   Object.entries(likedGenreMap).forEach(([genre, count]) => {
+    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 4;
+  });
+
+  // Weight 3: Watchlist
+  Object.entries(watchlistGenreMap).forEach(([genre, count]) => {
+    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 3;
+  });
+
+  // Weight 2: Trailer Starts
+  Object.entries(watchedGenreMap).forEach(([genre, count]) => {
     combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 2;
   });
-  Object.entries(watchedGenreMap).forEach(([genre, count]) => {
-    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count;
-  });
+
+  // Weight 1: Preferred Genres
   Object.entries(preferenceGenreMap).forEach(([genre, count]) => {
-    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count;
+    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 1;
   });
 
   // If the user has no interaction history, fall back to top-rated movies

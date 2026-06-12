@@ -175,9 +175,9 @@ export default function Profile() {
             {/* Stats grid */}
             <div className="grid grid-cols-3 gap-4 mt-10">
               {[
-                { label: 'Films watched', value: user?.stats?.watchHistoryCount || 0 },
-                { label: 'Hours streamed', value: `${user?.stats?.totalWatchHours || 0}h` },
+                { label: 'Trailer plays', value: user?.stats?.totalWatchHours || 0 },
                 { label: 'Liked titles', value: user?.stats?.likedCount || 0 },
+                { label: 'Total reviews', value: user?.stats?.reviewCount || 0 },
               ].map((stat) => (
                 <div
                   key={stat.label}
