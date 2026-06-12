@@ -120,7 +120,7 @@ export default function Admin() {
   const loadMovies = useCallback(async () => {
     setLoadingMovies(true);
     try {
-      const res = await movieService.getAll();
+      const res = await movieService.getAll({ limit: 1000 });
       if (res.success) {
         setMoviesList(res.data || []);
       }

@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { deleteAsset } from '../services/cloudinaryService.js';
 import { getRecommendations } from '../services/recommendationService.js';
+import { syncDbToSeedFile } from '../utils/syncDbToSeed.js';
 
 /**
  * GET /api/movies
@@ -167,6 +168,7 @@ export const getRecommended = asyncHandler(async (req, res) => {
  */
 export const create = asyncHandler(async (req, res) => {
   const newMovie = await Movie.create(req.body);
+  await syncDbToSeedFile();
   res.status(201).json({ success: true, data: newMovie, message: 'Movie created successfully.' });
 });
 
@@ -198,6 +200,8 @@ export const update = asyncHandler(async (req, res) => {
   }
 
   const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  await syncDbToSeedFile();
+
   res.json({ success: true, data: updatedMovie, message: 'Movie updated successfully.' });
 });
 
@@ -235,6 +239,8 @@ export const remove = asyncHandler(async (req, res) => {
       }
     }
   );
+
+  await syncDbToSeedFile();
 
   res.json({ success: true, message: 'Movie and all associated reviews and interactions deleted.' });
 });
