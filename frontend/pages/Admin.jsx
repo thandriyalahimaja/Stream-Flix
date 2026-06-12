@@ -248,7 +248,7 @@ export default function Admin() {
 
   // Delete User (triggers custom modal)
   const handleDeleteUser = (userId) => {
-    const userItem = users.find((u) => u._id === userId);
+    const userItem = usersList.find((u) => u._id === userId);
     const userName = userItem ? userItem.name : 'this user';
     setDeleteTarget({
       type: 'user',
