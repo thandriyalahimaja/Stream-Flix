@@ -19,7 +19,7 @@ export const authLimiter = rateLimit({
  */
 export const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isDevOrTest ? 100 : 5,
+  max: 999999, // Relaxed/disabled for this mini project
   message: { success: false, message: 'Too many upload attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
