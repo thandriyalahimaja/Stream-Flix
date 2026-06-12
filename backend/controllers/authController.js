@@ -131,7 +131,7 @@ export const refresh = asyncHandler(async (req, res) => {
 export const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id)
     .populate('likedMovies', 'title poster')
-    .populate('watchHistory.movie', 'title poster duration');
+    .populate('trailerHistory.movie', 'title poster duration');
 
   if (!user) throw new ApiError(404, 'User not found.');
 
@@ -143,9 +143,13 @@ export const getMe = asyncHandler(async (req, res) => {
 
   const userData = sanitizeUser(user);
   
-  // Filter out any references to deleted movies
-  userData.likedMovies = (userData.likedMovies || []).filter(Boolean);
-  userData.watchHistory = (userData.watchHistory || []).filter(h => h && h.movie !== null);
+  // Filter out any references to deleted movies and map to watchHistory for API contract compatibility
+  const validTrailers = (user.trailerHistory || []).filter(h => h && h.movie !== null);
+  userData.watchHistory = validTrailers.map(h => ({
+    movie: h.movie,
+    watchedAt: h.watchedAt
+  }));
+  userData.trailerHistory = validTrailers;
 
   userData.stats = {
     watchlistCount,

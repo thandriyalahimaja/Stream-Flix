@@ -47,10 +47,10 @@ export const getWatchHistory = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
 
   const user = await User.findById(req.user.id)
-    .select('watchHistory')
-    .populate('watchHistory.movie', 'title poster duration rating year genres');
+    .select('trailerHistory')
+    .populate('trailerHistory.movie', 'title poster duration rating year genres');
 
-  const validHistory = (user?.watchHistory || []).filter(
+  const validHistory = (user?.trailerHistory || []).filter(
     (entry) => entry && entry.movie !== null
   );
 
@@ -72,24 +72,25 @@ export const addToWatchHistory = asyncHandler(async (req, res) => {
   const { movieId } = req.body;
   const user = await User.findById(req.user.id);
 
-  const existingEntry = user.watchHistory.find(
-    (entry) => String(entry.movie) === String(movieId)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Check if a trailer play exists for this user and movie today
+  const existingEntry = user.trailerHistory.find(
+    (entry) => String(entry.movie) === String(movieId) && new Date(entry.watchedAt) >= today
   );
 
-  if (existingEntry) {
-    existingEntry.watchedAt = new Date();
-  } else {
-    user.watchHistory.push({ movie: movieId, startedTrailer: true });
+  if (!existingEntry) {
+    user.trailerHistory.push({ movie: movieId, watchedAt: new Date() });
+    await user.save();
+
+    // Log activity of type 'watch' (Trailer play) for recent activity feed once per day
+    await Activity.create({
+      user: req.user.id,
+      type: 'watch',
+      movie: movieId,
+    });
   }
-
-  await user.save();
-
-  // Log activity of type 'watch' (Trailer play) for recent activity feed
-  await Activity.create({
-    user: req.user.id,
-    type: 'watch',
-    movie: movieId,
-  });
 
   res.json({ success: true, message: 'Trailer start recorded.' });
 });
@@ -194,7 +195,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 
   const [user, watchlistCount, reviewCount, userReviews] = await Promise.all([
     User.findById(userId)
-      .populate('watchHistory.movie', 'genres duration')
+      .populate('trailerHistory.movie', 'genres duration')
       .populate('likedMovies', 'genres'),
     Watchlist.countDocuments({ user: userId }),
     Review.countDocuments({ user: userId }),
@@ -202,7 +203,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   ]);
 
   const validLikedMovies = (user.likedMovies || []).filter(Boolean);
-  const validWatchHistory = (user.watchHistory || []).filter(
+  const validWatchHistory = (user.trailerHistory || []).filter(
     (entry) => entry && entry.movie
   );
 

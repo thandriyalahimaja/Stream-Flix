@@ -44,7 +44,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
       { $group: { _id: null, total: { $sum: '$views' } } }
     ]),
     User.aggregate([
-      { $project: { count: { $size: { $ifNull: ['$watchHistory', []] } } } },
+      { $project: { count: { $size: { $ifNull: ['$trailerHistory', []] } } } },
       { $group: { _id: null, total: { $sum: '$count' } } }
     ]),
     User.aggregate([
@@ -56,6 +56,33 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const totalViews = totalViewsRes[0]?.total || 0;
   const totalTrailerStarts = trailerStartsRes[0]?.total || 0;
   const totalLikes = totalLikesRes[0]?.total || 0;
+
+  // Aggregate popular genres based on user interactions: likes, reviews, watchlist
+  const [usersWithLikes, reviewsWithMovies, watchlistsWithMovies] = await Promise.all([
+    User.find().select('likedMovies').populate('likedMovies', 'genres'),
+    Review.find().populate('movie', 'genres'),
+    Watchlist.find().populate('movie', 'genres'),
+  ]);
+
+  const interestGenreMap = {};
+  const addGenresToMap = (movies) => {
+    movies.forEach((m) => {
+      if (m && Array.isArray(m.genres)) {
+        m.genres.forEach((g) => {
+          interestGenreMap[g] = (interestGenreMap[g] || 0) + 1;
+        });
+      }
+    });
+  };
+
+  addGenresToMap(usersWithLikes.flatMap((u) => u.likedMovies || []));
+  addGenresToMap(reviewsWithMovies.map((r) => r.movie).filter(Boolean));
+  addGenresToMap(watchlistsWithMovies.map((w) => w.movie).filter(Boolean));
+
+  const popularGenres = Object.entries(interestGenreMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   // Genre distribution across all movies in the catalog
   const genreDistribution = await Movie.aggregate([
@@ -92,6 +119,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
       totalViews,
       totalTrailerStarts,
       totalLikes,
+      popularGenres,
     },
   });
 });

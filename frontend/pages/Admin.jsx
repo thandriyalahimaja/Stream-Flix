@@ -686,8 +686,9 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* Genre Distribution & Top Performers */}
+              {/* Genre Metrics (2-column layout) */}
               <div className="grid lg:grid-cols-2 gap-6">
+                {/* Library Volume Chart */}
                 <div className="rounded-2xl p-6" style={{ background: 'var(--cw-card)' }}>
                   <h3 className="font-semibold mb-4" style={{ color: 'var(--cw-text)' }}>Genre distribution (Library volume)</h3>
                   <div className="h-64">
@@ -707,34 +708,55 @@ export default function Admin() {
                   </div>
                 </div>
 
+                {/* Popular Genres Chart (User Demand) */}
                 <div className="rounded-2xl p-6" style={{ background: 'var(--cw-card)' }}>
-                  <h3 className="font-semibold mb-4" style={{ color: 'var(--cw-text)' }}>Film popularity statistics (Total watch data)</h3>
-                  <div className="space-y-4">
+                  <h3 className="font-semibold mb-4" style={{ color: 'var(--cw-text)' }}>Most popular genres (User demand)</h3>
+                  <div className="h-64">
                     {loadingStats ? (
-                      <p className="text-sm py-4 text-center" style={{ color: 'var(--cw-text2)' }}>Loading statistics...</p>
-                    ) : stats?.topMovies && stats.topMovies.length > 0 ? (
-                      stats.topMovies.map((movie) => {
-                        const score = movie.views ? Math.round((movie.likes / movie.views) * 100) : 0;
-                        return (
-                          <div key={movie._id} className="p-4 rounded-xl bg-black/15 flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-sm" style={{ color: 'var(--cw-text)' }}>{movie.title}</span>
-                              <span className="text-xs font-semibold" style={{ color: 'var(--cw-button)' }}>{movie.views} views</span>
-                            </div>
-                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${Math.min(score, 100)}%`, background: 'var(--cw-accent)' }} />
-                            </div>
-                            <div className="flex justify-between items-center text-[10px]" style={{ color: 'var(--cw-text2)' }}>
-                              <span>Approval rating: {score}%</span>
-                              <span>Likes count: {movie.likes}</span>
-                            </div>
-                          </div>
-                        );
-                      })
+                      <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--cw-text2)' }}>Loading demand statistics...</div>
+                    ) : stats?.popularGenres && stats.popularGenres.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.popularGenres} layout="vertical">
+                          <Tooltip contentStyle={{ background: 'var(--cw-bg)', border: 'none', borderRadius: 12, color: 'var(--cw-text)' }} />
+                          <XAxis type="number" stroke="var(--cw-text2)" />
+                          <Bar dataKey="count" fill="var(--cw-button)" radius={[0, 8, 8, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     ) : (
-                      <p className="text-sm py-4 text-center" style={{ color: 'var(--cw-text2)' }}>No movie engagement data available.</p>
+                      <div className="h-full flex items-center justify-center text-sm text-neutral-400">No user interaction data yet.</div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Film Popularity Statistics (Full width below) */}
+              <div className="rounded-2xl p-6" style={{ background: 'var(--cw-card)' }}>
+                <h3 className="font-semibold mb-6" style={{ color: 'var(--cw-text)' }}>Film popularity statistics (Total engagement data)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {loadingStats ? (
+                    <p className="text-sm py-4 text-center col-span-full" style={{ color: 'var(--cw-text2)' }}>Loading statistics...</p>
+                  ) : stats?.topMovies && stats.topMovies.length > 0 ? (
+                    stats.topMovies.map((movie) => {
+                      const score = movie.views ? Math.round((movie.likes / movie.views) * 100) : 0;
+                      return (
+                        <div key={movie._id} className="p-4 rounded-xl bg-black/15 flex flex-col gap-2 justify-between">
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-semibold text-sm line-clamp-1" style={{ color: 'var(--cw-text)' }}>{movie.title}</span>
+                            <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--cw-button)' }}>{movie.views} views</span>
+                          </div>
+                          <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden my-1">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(score, 100)}%`, background: 'var(--cw-accent)' }} />
+                          </div>
+                          <div className="flex justify-between items-center text-[10px]" style={{ color: 'var(--cw-text2)' }}>
+                            <span>Approval rating: {score}%</span>
+                            <span>Likes: {movie.likes} • Rating: {movie.rating}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm py-4 text-center col-span-full" style={{ color: 'var(--cw-text2)' }}>No movie engagement data available.</p>
+                  )}
                 </div>
               </div>
             </div>

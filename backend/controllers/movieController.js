@@ -134,14 +134,14 @@ export const getRecommended = asyncHandler(async (req, res) => {
     const [userWithHistory, userReviews, userWatchlist] = await Promise.all([
       User.findById(req.user.id)
         .populate('likedMovies', 'genres rating _id')
-        .populate('watchHistory.movie', 'genres rating _id'),
+        .populate('trailerHistory.movie', 'genres rating _id'),
       Review.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
       Watchlist.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
     ]);
 
     preferredGenres = userWithHistory?.preferences?.genres || [];
     likedMovies = (userWithHistory?.likedMovies || []).filter(Boolean);
-    watchHistory = (userWithHistory?.watchHistory || []).filter(
+    watchHistory = (userWithHistory?.trailerHistory || []).filter(
       (entry) => entry && entry.movie
     );
     reviewedMovies = userReviews.map((r) => r.movie).filter(Boolean);

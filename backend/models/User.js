@@ -18,10 +18,9 @@ const userSchema = new mongoose.Schema({
     subtitleLang: { type: String, default: 'English' },
     quality: { type: String, default: '4K HDR' },
   },
-  watchHistory: [{
+  trailerHistory: [{
     movie: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie' },
     watchedAt: { type: Date, default: Date.now },
-    startedTrailer: { type: Boolean, default: true },
   }],
   likedMovies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }],
   dislikedMovies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }],
@@ -30,7 +29,7 @@ const userSchema = new mongoose.Schema({
 
 // Virtual: total watch time (now representing trailer starts count for capstone compliance)
 userSchema.virtual('totalWatchHours').get(function () {
-  return this.watchHistory ? this.watchHistory.length : 0;
+  return this.trailerHistory ? this.trailerHistory.length : 0;
 });
 
 userSchema.set('toJSON', { virtuals: true });

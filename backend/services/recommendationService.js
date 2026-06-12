@@ -103,9 +103,20 @@ export function getRecommendations({
   // Build genre frequency maps for all signals
   const preferenceMovies = preferredGenres.map((genre) => ({ genres: [genre] }));
   const likedGenreMap = buildGenreFrequencyMap(likedMovies.filter(Boolean));
-  const watchedGenreMap = buildGenreFrequencyMap(
-    watchHistory.filter((e) => e && e.movie).map((e) => e.movie)
-  );
+  // Deduplicate trailer starts to only count each movie once
+  const uniqueWatchedMovies = [];
+  const seenWatchIds = new Set();
+  watchHistory.forEach((entry) => {
+    if (entry && entry.movie) {
+      const mid = String(entry.movie._id || entry.movie);
+      if (!seenWatchIds.has(mid)) {
+        seenWatchIds.add(mid);
+        uniqueWatchedMovies.push(entry.movie);
+      }
+    }
+  });
+
+  const watchedGenreMap = buildGenreFrequencyMap(uniqueWatchedMovies);
   const reviewedGenreMap = buildGenreFrequencyMap(reviewedMovies.filter(Boolean));
   const watchlistGenreMap = buildGenreFrequencyMap(watchlistMovies.filter(Boolean));
   const preferenceGenreMap = buildGenreFrequencyMap(preferenceMovies);
@@ -128,9 +139,9 @@ export function getRecommendations({
     combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 3;
   });
 
-  // Weight 2: Trailer Starts
+  // Weight 2: Trailer Starts (contribution capped at max 2 per genre)
   Object.entries(watchedGenreMap).forEach(([genre, count]) => {
-    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + count * 2;
+    combinedGenreMap[genre] = (combinedGenreMap[genre] || 0) + Math.min(count, 1) * 2;
   });
 
   // Weight 1: Preferred Genres
