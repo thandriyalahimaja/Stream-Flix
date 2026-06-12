@@ -17,10 +17,17 @@ export function verifyRefreshToken(token) {
  * Set refresh token as httpOnly cookie.
  */
 export function setRefreshCookie(res, token) {
+  const req = res.req;
+  const host = req ? req.get('host') : '';
+  const isLocalhost = host && (host.includes('localhost') || host.includes('127.0.0.1'));
+  
+  const secure = !isLocalhost;
+  const sameSite = isLocalhost ? 'lax' : 'none';
+
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure,
+    sameSite,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     path: '/',
   });
@@ -30,11 +37,19 @@ export function setRefreshCookie(res, token) {
  * Clear refresh token cookie.
  */
 export function clearRefreshCookie(res) {
+  const req = res.req;
+  const host = req ? req.get('host') : '';
+  const isLocalhost = host && (host.includes('localhost') || host.includes('127.0.0.1'));
+  
+  const secure = !isLocalhost;
+  const sameSite = isLocalhost ? 'lax' : 'none';
+
   res.cookie('refreshToken', '', {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure,
+    sameSite,
     maxAge: 0,
     path: '/',
   });
 }
+
