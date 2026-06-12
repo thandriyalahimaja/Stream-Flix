@@ -17,16 +17,24 @@ export function AuthProvider({ children }) {
   // Check for existing session on mount
   useEffect(() => {
     const initAuth = async () => {
+      const sessionActive = localStorage.getItem('streamflix_session_active') === 'true';
+      if (!sessionActive) {
+        setLoading(false);
+        return;
+      }
       try {
         const res = await authService.refreshToken();
         if (res?.accessToken) {
           setAccessToken(res.accessToken);
           const me = await authService.getMe();
           setUser(me.user);
+        } else {
+          localStorage.removeItem('streamflix_session_active');
         }
       } catch (err) {
         // Silent fail — no active session found, user stays logged out
         setUser(null);
+        localStorage.removeItem('streamflix_session_active');
       } finally {
         setLoading(false);
       }
@@ -50,6 +58,7 @@ export function AuthProvider({ children }) {
         return null;
       });
       setAccessToken(null);
+      localStorage.removeItem('streamflix_session_active');
     };
     window.addEventListener('auth-logout', handleLogout);
     return () => window.removeEventListener('auth-logout', handleLogout);
@@ -62,10 +71,12 @@ export function AuthProvider({ children }) {
       const res = await authService.login({ email, password });
       setAccessToken(res.accessToken);
       setUser(res.user);
+      localStorage.setItem('streamflix_session_active', 'true');
       return res.user;
     } catch (err) {
       setAccessToken(null);
       setUser(null);
+      localStorage.removeItem('streamflix_session_active');
       throw err;
     } finally {
       setLoading(false);
@@ -78,10 +89,12 @@ export function AuthProvider({ children }) {
       const res = await authService.register({ name, email, password, genres });
       setAccessToken(res.accessToken);
       setUser(res.user);
+      localStorage.setItem('streamflix_session_active', 'true');
       return res.user;
     } catch (err) {
       setAccessToken(null);
       setUser(null);
+      localStorage.removeItem('streamflix_session_active');
       throw err;
     } finally {
       setLoading(false);
@@ -97,6 +110,7 @@ export function AuthProvider({ children }) {
     } finally {
       setAccessToken(null);
       setUser(null);
+      localStorage.removeItem('streamflix_session_active');
       setLoading(false);
     }
   }, []);
