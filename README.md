@@ -212,17 +212,6 @@ StreamFlix uses Cloudinary for media storage and optimization.
 - **User deletion cleanup:** User deletion removes an uploaded avatar when present.
 
 ---
-
-## Screenshots
-
-![Home](assets/home.png)
-![Browse](assets/browse.png)
-![Movie Details](assets/movie-details.png)
-![Dashboard](assets/dashboard.png)
-![Admin](assets/admin.png)
-
----
-
 ## Installation
 
 ```bash
@@ -424,17 +413,7 @@ VITE_API_URL=http://localhost:5000/api
 - Improve recommendation scoring with more interaction signals.
 - Add social features such as following users or sharing watchlists.
 
----
-
-## Author
-
-Created by: **Your Name**
-
-GitHub: **https://github.com/your-username**
-
-College / Department: **Your College Name**
-
----
+------------------------------------------------------------------------------------------------------------------------------------------
 
 ## License
 
