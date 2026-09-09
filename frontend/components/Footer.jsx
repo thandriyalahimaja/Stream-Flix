@@ -80,13 +80,7 @@ export function Footer() {
         }}
       >
         <span>© {new Date().getFullYear()} {APP_CONFIG.name} Studios</span>
-        <a
-          href="https://trailerix.com"
-          rel="noopener"
-          className="trailerix-credit"
-        >
-          Fresh trailers by Trailerix
-        </a>
+        <span>Curated Cinema Experience · Zero Ads</span>
         <span>Crafted with care · v{APP_CONFIG.version}</span>
       </div>
     </footer>
