@@ -22,6 +22,9 @@ import aiRoutes from './routes/aiRoutes.js';
 
 const app = express();
 
+// Trust reverse proxy (Render, Vercel, cloud load balancers) for accurate client IP in rate limiting
+app.set('trust proxy', 1);
+
 /**
  * Security headers via Helmet.
  * Content Security Policy (CSP) is configured to allow:
