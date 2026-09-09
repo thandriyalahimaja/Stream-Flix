@@ -8,6 +8,24 @@ import { deleteAsset } from '../services/cloudinaryService.js';
 import { getRecommendations } from '../services/recommendationService.js';
 import { syncDbToSeedFile } from '../utils/syncDbToSeed.js';
 
+let cachedCatalog = null;
+let cachedCatalogTime = 0;
+
+export async function getCachedMovieCatalog() {
+  const now = Date.now();
+  if (cachedCatalog && now - cachedCatalogTime < 10 * 60 * 1000) {
+    return cachedCatalog;
+  }
+  cachedCatalog = await Movie.find().lean();
+  cachedCatalogTime = now;
+  return cachedCatalog;
+}
+
+export function invalidateMovieCatalogCache() {
+  cachedCatalog = null;
+  cachedCatalogTime = 0;
+}
+
 /**
  * GET /api/movies
  * Returns a paginated, sorted list of all movies.
@@ -57,8 +75,15 @@ export const getAll = asyncHandler(async (req, res) => {
 
   const skipCount = (Number(page) - 1) * Number(limit);
 
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+
   const [movies, totalCount] = await Promise.all([
-    Movie.find(filter).sort(sortOption).skip(skipCount).limit(Number(limit)),
+    Movie.find(filter)
+      .select('-embedding -embeddingText')
+      .lean()
+      .sort(sortOption)
+      .skip(skipCount)
+      .limit(Number(limit)),
     Movie.countDocuments(filter),
   ]);
 
@@ -76,15 +101,19 @@ export const getById = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Movie not found (invalid ID format).');
   }
 
-  const movie = await Movie.findById(req.params.id);
+  const movie = await Movie.findById(req.params.id)
+    .select('-embedding -embeddingText')
+    .lean();
   if (!movie) throw new ApiError(404, 'Movie not found.');
 
   const recentReviews = await Review.find({ movie: movie._id })
     .populate('user', 'name avatar')
     .sort('-createdAt')
-    .limit(10);
+    .limit(10)
+    .lean();
 
-  res.json({ success: true, data: { ...movie.toObject(), reviews: recentReviews } });
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  res.json({ success: true, data: { ...movie, reviews: recentReviews } });
 });
 
 /**
@@ -127,8 +156,14 @@ export const search = asyncHandler(async (req, res) => {
 
   const skipCount = (Number(page) - 1) * Number(limit);
 
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+
   const [movies, totalCount] = await Promise.all([
-    Movie.find(filter).skip(skipCount).limit(Number(limit)),
+    Movie.find(filter)
+      .select('-embedding -embeddingText')
+      .lean()
+      .skip(skipCount)
+      .limit(Number(limit)),
     Movie.countDocuments(filter),
   ]);
 
@@ -148,7 +183,12 @@ export const search = asyncHandler(async (req, res) => {
  */
 export const getByGenre = asyncHandler(async (req, res) => {
   const { genre, limit = 20 } = req.query;
-  const movies = await Movie.find({ genres: genre }).sort('-rating').limit(Number(limit));
+  res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+  const movies = await Movie.find({ genres: genre })
+    .select('-embedding -embeddingText')
+    .lean()
+    .sort('-rating')
+    .limit(Number(limit));
   res.json({ success: true, data: movies });
 });
 
@@ -157,26 +197,24 @@ export const getByGenre = asyncHandler(async (req, res) => {
  * Returns the 10 most-viewed movies (highest view count first).
  */
 export const getTrending = asyncHandler(async (req, res) => {
-  const trendingMovies = await Movie.find().sort('-views').limit(10);
+  res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+  const trendingMovies = await Movie.find()
+    .select('-embedding -embeddingText')
+    .lean()
+    .sort('-views')
+    .limit(10);
   res.json({ success: true, data: trendingMovies });
 });
 
 /**
  * GET /api/movies/recommended
  * Returns personalized recommendations for the authenticated user.
- *
- * Uses the recommendation service which scores movies based on:
- * - Genres from liked movies (strong signal, ×2 weight)
- * - Genres from watch history (moderate signal, ×1 weight)
- * - Genres from user profile preferences (×1 weight)
- * - IMDb rating bonus for movies rated >= 8.0
- *
- * Falls back to top-rated movies for new users with no interaction history.
  */
 export const getRecommended = asyncHandler(async (req, res) => {
   const User = (await import('../models/User.js')).default;
 
-  const allMovies = await Movie.find();
+  // Use fast in-memory cached catalog instead of fetching 10MB across MongoDB Atlas network
+  const allMovies = await getCachedMovieCatalog();
 
   let preferredGenres = req.query.genres ? req.query.genres.split(',').map(s => s.trim()).filter(Boolean) : [];
   let preferredLanguage = req.query.language || req.query.preferredLanguage || null;
@@ -227,7 +265,16 @@ export const getRecommended = asyncHandler(async (req, res) => {
     includeDebug,
   });
 
-  res.json({ success: true, data: recommendedMovies });
+  // Strip massive embedding vector floats from payload before sending to browser
+  const sanitized = recommendedMovies.map((m) => {
+    if (m.embedding || m.embeddingText) {
+      const { embedding, embeddingText, ...rest } = m;
+      return rest;
+    }
+    return m;
+  });
+
+  res.json({ success: true, data: sanitized });
 });
 
 /**
@@ -236,6 +283,7 @@ export const getRecommended = asyncHandler(async (req, res) => {
  */
 export const create = asyncHandler(async (req, res) => {
   const newMovie = await Movie.create(req.body);
+  invalidateMovieCatalogCache();
   await syncDbToSeedFile();
   res.status(201).json({ success: true, data: newMovie, message: 'Movie created successfully.' });
 });
@@ -268,6 +316,7 @@ export const update = asyncHandler(async (req, res) => {
   }
 
   const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  invalidateMovieCatalogCache();
   await syncDbToSeedFile();
 
   res.json({ success: true, data: updatedMovie, message: 'Movie updated successfully.' });
@@ -308,6 +357,7 @@ export const remove = asyncHandler(async (req, res) => {
     }
   );
 
+  invalidateMovieCatalogCache();
   await syncDbToSeedFile();
 
   res.json({ success: true, message: 'Movie and all associated reviews and interactions deleted.' });
@@ -322,13 +372,17 @@ export const getSimilar = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Movie not found (invalid ID format).');
   }
 
-  const movie = await Movie.findById(req.params.id);
+  const movie = await Movie.findById(req.params.id).select('genres').lean();
   if (!movie) throw new ApiError(404, 'Movie not found.');
 
+  res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
   const similarMovies = await Movie.find({
     _id: { $ne: movie._id },
     genres: { $in: movie.genres || [] }
-  }).limit(6);
+  })
+    .select('-embedding -embeddingText')
+    .lean()
+    .limit(6);
 
   res.json({ success: true, data: similarMovies });
 });

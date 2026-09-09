@@ -57,54 +57,43 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch all movies for hero and generic rows
-      const allRes = await movieService.getAll({ limit: 50 });
-      if (allRes.success && allRes.data) {
-        setMoviesList(allRes.data);
-      }
-
-      // 2. Fetch trending movies
-      const trendRes = await movieService.getTrending();
-      if (trendRes.success && trendRes.data) {
-        setTrending(trendRes.data);
-      }
-
-      // 3. Fetch recommended movies if authenticated
-      if (user) {
-        const recRes = await movieService.getRecommended();
-        if (recRes.success && recRes.data) {
-          setRecommended(recRes.data);
-        }
-      } else {
-        setRecommended([]);
-      }
-
-      // 4. Fetch watch history if authenticated
-      if (user) {
-        const historyRes = await userService.getWatchHistory();
-        if (historyRes.success && historyRes.data) {
-          const continueList = historyRes.data
-            .filter((h) => h.movie)
-            .map((h) => h.movie);
-          setContinueWatching(continueList);
-        }
-      } else {
-        setContinueWatching([]);
-      }
-
-      // 5. Fetch regional cinema highlights across Indian industries
-      const [tollyRes, bollyRes, kollyRes, mollyRes, sandyRes] = await Promise.allSettled([
-        movieService.getAll({ industry: 'Tollywood', limit: 12 }),
-        movieService.getAll({ industry: 'Bollywood', limit: 12 }),
-        movieService.getAll({ industry: 'Kollywood', limit: 12 }),
-        movieService.getAll({ industry: 'Mollywood', limit: 12 }),
-        movieService.getAll({ industry: 'Sandalwood', limit: 12 }),
+      // Fire all data queries concurrently in a single parallel burst
+      const [
+        allRes,
+        trendRes,
+        recRes,
+        historyRes,
+        tollyRes,
+        bollyRes,
+        kollyRes,
+        mollyRes,
+        sandyRes,
+      ] = await Promise.allSettled([
+        movieService.getAll({ limit: 40 }),
+        movieService.getTrending(),
+        user ? movieService.getRecommended() : Promise.resolve({ success: true, data: [] }),
+        user ? userService.getWatchHistory() : Promise.resolve({ success: true, data: [] }),
+        movieService.getAll({ industry: 'Tollywood', limit: 10 }),
+        movieService.getAll({ industry: 'Bollywood', limit: 10 }),
+        movieService.getAll({ industry: 'Kollywood', limit: 10 }),
+        movieService.getAll({ industry: 'Mollywood', limit: 10 }),
+        movieService.getAll({ industry: 'Sandalwood', limit: 10 }),
       ]);
-      if (tollyRes.status === 'fulfilled' && tollyRes.value.success) setTollywood(tollyRes.value.data);
-      if (bollyRes.status === 'fulfilled' && bollyRes.value.success) setBollywood(bollyRes.value.data);
-      if (kollyRes.status === 'fulfilled' && kollyRes.value.success) setKollywood(kollyRes.value.data);
-      if (mollyRes.status === 'fulfilled' && mollyRes.value.success) setMollywood(mollyRes.value.data);
-      if (sandyRes.status === 'fulfilled' && sandyRes.value.success) setSandalwood(sandyRes.value.data);
+
+      if (allRes.status === 'fulfilled' && allRes.value?.success) setMoviesList(allRes.value.data);
+      if (trendRes.status === 'fulfilled' && trendRes.value?.success) setTrending(trendRes.value.data);
+      if (recRes.status === 'fulfilled' && recRes.value?.success) setRecommended(recRes.value.data || []);
+      if (historyRes.status === 'fulfilled' && historyRes.value?.success) {
+        const continueList = (historyRes.value.data || [])
+          .filter((h) => h && h.movie)
+          .map((h) => h.movie);
+        setContinueWatching(continueList);
+      }
+      if (tollyRes.status === 'fulfilled' && tollyRes.value?.success) setTollywood(tollyRes.value.data);
+      if (bollyRes.status === 'fulfilled' && bollyRes.value?.success) setBollywood(bollyRes.value.data);
+      if (kollyRes.status === 'fulfilled' && kollyRes.value?.success) setKollywood(kollyRes.value.data);
+      if (mollyRes.status === 'fulfilled' && mollyRes.value?.success) setMollywood(mollyRes.value.data);
+      if (sandyRes.status === 'fulfilled' && sandyRes.value?.success) setSandalwood(sandyRes.value.data);
     } catch (err) {
       setError(err.message || 'Unable to load home screen content.');
     } finally {
