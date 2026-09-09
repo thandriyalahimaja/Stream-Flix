@@ -242,6 +242,10 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Review.find({ user: userId }).select('rating'),
   ]);
 
+  if (!user) {
+    throw new ApiError(404, 'User not found.');
+  }
+
   const validLikedMovies = (user.likedMovies || []).filter(Boolean);
   const validWatchHistory = (user.trailerHistory || []).filter(
     (entry) => entry && entry.movie
@@ -264,12 +268,12 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 
   // Average rating the user has given across all their reviews
   const averageRating =
-    userReviews.length > 0
+    userReviews && userReviews.length > 0
       ? (
-          userReviews.reduce((sum, review) => sum + review.rating, 0) /
+          userReviews.reduce((sum, review) => sum + (review.rating || 0), 0) /
           userReviews.length
         ).toFixed(1)
-      : '0';
+      : '0.0';
 
   // Weekly watch activity: how many hours watched per day in the last 7 days
   const now = new Date();
@@ -277,10 +281,15 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const weeklyActivity = weekDays.map((day) => ({ d: day, h: 0 }));
 
   validWatchHistory.forEach((entry) => {
-    const daysAgo = (now - new Date(entry.watchedAt)) / (1000 * 60 * 60 * 24);
-    if (daysAgo <= 7) {
-      const dayIndex = new Date(entry.watchedAt).getDay();
-      weeklyActivity[dayIndex].h += 1; // 1 play count per event
+    if (!entry.watchedAt) return;
+    const watchedDate = new Date(entry.watchedAt);
+    if (isNaN(watchedDate.getTime())) return;
+    const daysAgo = (now - watchedDate) / (1000 * 60 * 60 * 24);
+    if (daysAgo >= 0 && daysAgo <= 7) {
+      const dayIndex = watchedDate.getDay();
+      if (weeklyActivity[dayIndex]) {
+        weeklyActivity[dayIndex].h += 1; // 1 play count per event
+      }
     }
   });
 

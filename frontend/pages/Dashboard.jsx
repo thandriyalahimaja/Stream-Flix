@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, XAxis, Tooltip } from 'recharts';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -20,43 +20,59 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch aggregated dashboard statistics
-      const statsRes = await userService.getDashboardStats();
-      if (statsRes.success) {
-        setDashboardData(statsRes.data);
-      } else {
-        throw new Error('Failed to retrieve statistics');
+      // Execute all 3 data fetches concurrently for speed and zero single-point-of-failure
+      const [statsRes, recRes, historyRes] = await Promise.allSettled([
+        userService.getDashboardStats(),
+        movieService.getRecommended(),
+        userService.getWatchHistory(),
+      ]);
+
+      let statsLoaded = false;
+      if (statsRes.status === 'fulfilled' && statsRes.value?.success && statsRes.value?.data) {
+        setDashboardData(statsRes.value.data);
+        statsLoaded = true;
       }
 
-      // Fetch taste recommendations
-      const recRes = await movieService.getRecommended();
-      if (recRes.success && recRes.data) {
-        setRecommended(recRes.data);
+      if (recRes.status === 'fulfilled' && recRes.value?.success && recRes.value?.data) {
+        setRecommended(recRes.value.data);
       }
 
-      // Fetch watch history to build the "Continue Watching" & "Recently Viewed" rows
-      const historyRes = await userService.getWatchHistory();
-      if (historyRes.success && historyRes.data) {
-        setContinueWatching([]);
-        const viewedList = historyRes.data
-          .filter((h) => h.movie)
+      if (historyRes.status === 'fulfilled' && historyRes.value?.success && historyRes.value?.data) {
+        const viewedList = (historyRes.value.data || [])
+          .filter((h) => h && h.movie)
           .map((h) => h.movie);
         setRecentlyViewed(viewedList);
+        setContinueWatching([]);
+      }
+
+      // If backend stats failed, provide graceful client profile data so user is never blocked
+      if (!statsLoaded) {
+        const fallbackStats = {
+          totalWatchHours: user?.trailerHistory?.length || 0,
+          watchlistCount: 0,
+          reviewCount: 0,
+          likedCount: user?.likedMovies?.length || 0,
+          avgRating: '0.0',
+          genreMix: [],
+          weeklyActivity: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => ({ d, h: 0 })),
+          topGenre: 'Discovering taste...',
+        };
+        setDashboardData(fallbackStats);
       }
     } catch (err) {
       setError(err.message || 'Unable to load dashboard details.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchDashboard();
-  }, []);
+  }, [fetchDashboard]);
 
   if (error) {
     return (
