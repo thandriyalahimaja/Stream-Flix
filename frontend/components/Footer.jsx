@@ -72,7 +72,7 @@ export function Footer() {
       </div>
 
       <div
-        className="max-w-7xl mx-auto mt-10 pt-6 flex flex-col sm:flex-row justify-between gap-2"
+        className="max-w-7xl mx-auto mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2"
         style={{
           borderTop: '1px solid color-mix(in srgb, var(--cw-footer-text) 20%, transparent)',
           fontSize: '12px',
@@ -80,6 +80,13 @@ export function Footer() {
         }}
       >
         <span>© {new Date().getFullYear()} {APP_CONFIG.name} Studios</span>
+        <a
+          href="https://trailerix.com"
+          rel="noopener"
+          className="trailerix-credit"
+        >
+          Fresh trailers by Trailerix
+        </a>
         <span>Crafted with care · v{APP_CONFIG.version}</span>
       </div>
     </footer>
