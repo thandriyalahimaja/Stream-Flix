@@ -68,10 +68,17 @@ export const MovieCard = memo(function MovieCard({ movie, size = 'md', contextTy
 
         {/* Card info */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-center gap-2 mb-1" style={{ color: 'var(--cw-accent)' }}>
-            <Star size={12} fill="currentColor" />
-            <span className="text-xs">{movie.rating}</span>
+          <div className="flex items-center gap-2 mb-1 flex-wrap" style={{ color: 'var(--cw-accent)' }}>
+            <div className="flex items-center gap-1">
+              <Star size={12} fill="currentColor" />
+              <span className="text-xs font-semibold">{movie.rating}</span>
+            </div>
             <span className="text-xs opacity-70" style={{ color: '#FFE7D6' }}>· {movie.year}</span>
+            {movie.industry && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/10 text-amber-300 border border-amber-400/20">
+                {movie.industry}
+              </span>
+            )}
           </div>
           <div className="font-medium" style={{ color: '#FFF6EC' }}>{movie.title}</div>
           <div className="flex gap-1.5 mt-1 flex-wrap">

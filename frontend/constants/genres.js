@@ -16,3 +16,16 @@ export const ONBOARDING_MOODS = [
   'Sci-Fi', 'Romance', 'Thriller', 'Indie',
   'Comedy', 'Drama', 'Mystery', 'Action',
 ];
+
+/**
+ * Regional Film Industries & Languages
+ */
+export const ALL_INDUSTRIES = [
+  { id: 'All', label: 'All Industries', shortLabel: 'All', language: 'All' },
+  { id: 'Tollywood', label: 'Tollywood (Telugu)', shortLabel: 'Tollywood', language: 'Telugu' },
+  { id: 'Bollywood', label: 'Bollywood (Hindi)', shortLabel: 'Bollywood', language: 'Hindi' },
+  { id: 'Kollywood', label: 'Kollywood (Tamil)', shortLabel: 'Kollywood', language: 'Tamil' },
+  { id: 'Mollywood', label: 'Mollywood (Malayalam)', shortLabel: 'Mollywood', language: 'Malayalam' },
+  { id: 'Sandalwood', label: 'Sandalwood (Kannada)', shortLabel: 'Sandalwood', language: 'Kannada' },
+];
+

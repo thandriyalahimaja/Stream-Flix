@@ -27,6 +27,11 @@ export default function Home() {
   const [trending, setTrending] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [continueWatching, setContinueWatching] = useState([]);
+  const [tollywood, setTollywood] = useState([]);
+  const [bollywood, setBollywood] = useState([]);
+  const [kollywood, setKollywood] = useState([]);
+  const [mollywood, setMollywood] = useState([]);
+  const [sandalwood, setSandalwood] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -86,6 +91,20 @@ export default function Home() {
       } else {
         setContinueWatching([]);
       }
+
+      // 5. Fetch regional cinema highlights across Indian industries
+      const [tollyRes, bollyRes, kollyRes, mollyRes, sandyRes] = await Promise.allSettled([
+        movieService.getAll({ industry: 'Tollywood', limit: 12 }),
+        movieService.getAll({ industry: 'Bollywood', limit: 12 }),
+        movieService.getAll({ industry: 'Kollywood', limit: 12 }),
+        movieService.getAll({ industry: 'Mollywood', limit: 12 }),
+        movieService.getAll({ industry: 'Sandalwood', limit: 12 }),
+      ]);
+      if (tollyRes.status === 'fulfilled' && tollyRes.value.success) setTollywood(tollyRes.value.data);
+      if (bollyRes.status === 'fulfilled' && bollyRes.value.success) setBollywood(bollyRes.value.data);
+      if (kollyRes.status === 'fulfilled' && kollyRes.value.success) setKollywood(kollyRes.value.data);
+      if (mollyRes.status === 'fulfilled' && mollyRes.value.success) setMollywood(mollyRes.value.data);
+      if (sandyRes.status === 'fulfilled' && sandyRes.value.success) setSandalwood(sandyRes.value.data);
     } catch (err) {
       setError(err.message || 'Unable to load home screen content.');
     } finally {
@@ -253,6 +272,46 @@ export default function Home() {
           title="Trending Now"
           movies={trending}
           hint="Most watched titles this week"
+        />
+      )}
+
+      {tollywood.length > 0 && (
+        <MovieRow
+          title="Tollywood Hits (Telugu)"
+          movies={tollywood}
+          hint="Action-packed, mass, and emotional Telugu cinema"
+        />
+      )}
+
+      {bollywood.length > 0 && (
+        <MovieRow
+          title="Bollywood Blockbusters (Hindi)"
+          movies={bollywood}
+          hint="Timeless classics and modern Hindi spectacles"
+        />
+      )}
+
+      {kollywood.length > 0 && (
+        <MovieRow
+          title="Kollywood Highlights (Tamil)"
+          movies={kollywood}
+          hint="Gripping stories and powerhouse Tamil filmmaking"
+        />
+      )}
+
+      {mollywood.length > 0 && (
+        <MovieRow
+          title="Mollywood Masterpieces (Malayalam)"
+          movies={mollywood}
+          hint="Realistic, ground-breaking Malayalam narratives"
+        />
+      )}
+
+      {sandalwood.length > 0 && (
+        <MovieRow
+          title="Sandalwood Cinema (Kannada)"
+          movies={sandalwood}
+          hint="Epic scale, high stakes Kannada cinema"
         />
       )}
 

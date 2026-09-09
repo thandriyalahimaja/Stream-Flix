@@ -11,15 +11,55 @@ import { syncDbToSeedFile } from '../utils/syncDbToSeed.js';
 /**
  * GET /api/movies
  * Returns a paginated, sorted list of all movies.
- * Query params: page, limit, sort (default: -rating)
+ * Query params: page, limit, sort (default: -rating), industry, language, genre, year
  */
 export const getAll = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, sort = '-rating' } = req.query;
+  const {
+    page = 1,
+    limit = 24,
+    sort = '-rating',
+    industry,
+    language,
+    genre,
+    year,
+  } = req.query;
+
+  const filter = {};
+  if (industry && industry !== 'All') {
+    filter.industry = new RegExp(`^${industry}$`, 'i');
+  }
+  if (language && language !== 'All') {
+    filter.$or = [
+      { language: new RegExp(`^${language}$`, 'i') },
+      { languageName: new RegExp(`^${language}$`, 'i') },
+    ];
+  }
+  if (genre && genre !== 'All') {
+    filter.genres = genre;
+  }
+  if (year) {
+    filter.year = Number(year);
+  }
+
+  // Parse sort param
+  let sortOption = { rating: -1, _id: 1 };
+  if (sort === 'year' || sort === '-year' || sort === 'latest') {
+    sortOption = { year: -1, rating: -1, _id: 1 };
+  } else if (sort === 'views' || sort === '-views' || sort === 'popular') {
+    sortOption = { views: -1, rating: -1, _id: 1 };
+  } else if (sort === 'title') {
+    sortOption = { title: 1, _id: 1 };
+  } else if (typeof sort === 'string' && sort.startsWith('-')) {
+    sortOption = { [sort.substring(1)]: -1, _id: 1 };
+  } else if (typeof sort === 'string' && sort) {
+    sortOption = { [sort]: -1, _id: 1 };
+  }
+
   const skipCount = (Number(page) - 1) * Number(limit);
 
   const [movies, totalCount] = await Promise.all([
-    Movie.find().sort(sort).skip(skipCount).limit(Number(limit)),
-    Movie.countDocuments(),
+    Movie.find(filter).sort(sortOption).skip(skipCount).limit(Number(limit)),
+    Movie.countDocuments(filter),
   ]);
 
   res.json({
@@ -67,16 +107,23 @@ export const recordView = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/movies/search
- * Searches movies by text query, genre filter, and/or year filter.
- * Query params: q (text), genre, year, page, limit
+ * Searches movies by text query, genre filter, industry, language, and/or year filter.
+ * Query params: q (text), genre, year, industry, language, page, limit
  */
 export const search = asyncHandler(async (req, res) => {
-  const { q: searchQuery, genre, year, page = 1, limit = 16 } = req.query;
+  const { q: searchQuery, genre, year, industry, language, page = 1, limit = 16 } = req.query;
 
   const filter = {};
   if (searchQuery) filter.$text = { $search: searchQuery };
   if (genre && genre !== 'All') filter.genres = genre;
   if (year) filter.year = Number(year);
+  if (industry && industry !== 'All') filter.industry = new RegExp(`^${industry}$`, 'i');
+  if (language && language !== 'All') {
+    filter.$or = [
+      { language: new RegExp(`^${language}$`, 'i') },
+      { languageName: new RegExp(`^${language}$`, 'i') },
+    ];
+  }
 
   const skipCount = (Number(page) - 1) * Number(limit);
 
@@ -85,7 +132,13 @@ export const search = asyncHandler(async (req, res) => {
     Movie.countDocuments(filter),
   ]);
 
-  res.json({ success: true, data: movies, total: totalCount });
+  res.json({
+    success: true,
+    data: movies,
+    total: totalCount,
+    page: Number(page),
+    pages: Math.ceil(totalCount / Number(limit)),
+  });
 });
 
 /**

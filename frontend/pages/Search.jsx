@@ -28,6 +28,7 @@ export default function Search() {
   // Standard search state
   const [q, setQ] = useState(params.get('q') || '');
   const [genre, setGenre] = useState('All');
+  const [industry, setIndustry] = useState('All');
   const [results, setResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -76,7 +77,11 @@ export default function Search() {
     setLoading(true);
     setError(null);
     try {
-      const res = await movieService.search(debouncedQ, { genre });
+      const filters = {};
+      if (genre && genre !== 'All') filters.genre = genre;
+      if (industry && industry !== 'All') filters.industry = industry;
+
+      const res = await movieService.search(debouncedQ, filters);
       if (res.success && res.data) {
         setResults(res.data);
         if (debouncedQ.trim()) {
@@ -96,7 +101,7 @@ export default function Search() {
     if (mode === 'standard') {
       performStandardSearch();
     }
-  }, [debouncedQ, genre, mode]);
+  }, [debouncedQ, genre, industry, mode]);
 
   // Standard autocomplete
   useEffect(() => {
@@ -331,13 +336,44 @@ export default function Search() {
               </div>
             )}
 
+            {/* Regional Industry & Language filter chips */}
+            <div className="flex flex-wrap items-center gap-2 mt-8">
+              <span className="text-xs font-bold uppercase tracking-wider mr-1" style={{ color: 'var(--cw-accent)' }}>
+                Industry:
+              </span>
+              {[
+                { id: 'All', label: 'All' },
+                { id: 'Tollywood', label: 'Tollywood (Telugu)' },
+                { id: 'Bollywood', label: 'Bollywood (Hindi)' },
+                { id: 'Kollywood', label: 'Kollywood (Tamil)' },
+                { id: 'Mollywood', label: 'Mollywood (Malayalam)' },
+                { id: 'Sandalwood', label: 'Sandalwood (Kannada)' },
+              ].map((ind) => (
+                <button
+                  key={ind.id}
+                  onClick={() => setIndustry(ind.id)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer"
+                  style={{
+                    background: industry === ind.id ? 'var(--cw-button)' : 'transparent',
+                    color: industry === ind.id ? 'white' : 'var(--cw-text2)',
+                    borderColor: industry === ind.id ? 'var(--cw-button)' : 'color-mix(in srgb, var(--cw-text) 15%, transparent)',
+                  }}
+                >
+                  {ind.label}
+                </button>
+              ))}
+            </div>
+
             {/* Genre filter chips */}
-            <div className="flex flex-wrap gap-2 mt-8">
-              {['All', 'Sci-Fi', 'Drama', 'Thriller', 'Romance', 'Mystery', 'Comedy'].map((x) => (
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <span className="text-xs font-bold uppercase tracking-wider mr-1" style={{ color: 'var(--cw-text2)' }}>
+                Genre:
+              </span>
+              {['All', 'Action', 'Crime', 'Drama', 'Thriller', 'Comedy', 'Romance', 'Sci-Fi', 'Mystery'].map((x) => (
                 <button
                   key={x}
                   onClick={() => setGenre(x)}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
+                  className="px-3 py-1 rounded-full text-xs font-semibold transition-all border cursor-pointer"
                   style={{
                     background: genre === x ? 'var(--cw-button)' : 'transparent',
                     color: genre === x ? 'white' : 'var(--cw-text2)',
