@@ -125,38 +125,53 @@ export const getRecommended = asyncHandler(async (req, res) => {
 
   const allMovies = await Movie.find();
 
-  let preferredGenres = [];
+  let preferredGenres = req.query.genres ? req.query.genres.split(',').map(s => s.trim()).filter(Boolean) : [];
+  let preferredLanguage = req.query.language || req.query.preferredLanguage || null;
   let likedMovies = [];
+  let dislikedMovies = [];
   let watchHistory = [];
-  let reviewedMovies = [];
+  let userReviews = [];
   let watchlistMovies = [];
 
   if (req.user) {
-    const [userWithHistory, userReviews, userWatchlist] = await Promise.all([
+    const [userWithHistory, reviews, userWatchlist] = await Promise.all([
       User.findById(req.user.id)
-        .populate('likedMovies', 'genres rating _id')
-        .populate('trailerHistory.movie', 'genres rating _id'),
-      Review.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
-      Watchlist.find({ user: req.user.id }).populate('movie', 'genres rating _id'),
+        .populate('likedMovies', 'genres rating director cast language _id embedding')
+        .populate('dislikedMovies', 'genres rating director cast language _id embedding')
+        .populate('trailerHistory.movie', 'genres rating director cast language _id embedding'),
+      Review.find({ user: req.user.id }).populate('movie', 'genres rating director cast language _id embedding'),
+      Watchlist.find({ user: req.user.id }).populate('movie', 'genres rating director cast language _id embedding'),
     ]);
 
-    preferredGenres = userWithHistory?.preferences?.genres || [];
+    if (preferredGenres.length === 0) {
+      preferredGenres = userWithHistory?.preferences?.genres || [];
+    }
+    if (!preferredLanguage && userWithHistory?.preferences?.subtitleLang && userWithHistory.preferences.subtitleLang !== 'English') {
+      preferredLanguage = userWithHistory.preferences.subtitleLang;
+    }
     likedMovies = (userWithHistory?.likedMovies || []).filter(Boolean);
+    dislikedMovies = (userWithHistory?.dislikedMovies || []).filter(Boolean);
     watchHistory = (userWithHistory?.trailerHistory || []).filter(
       (entry) => entry && entry.movie
     );
-    reviewedMovies = userReviews.map((r) => r.movie).filter(Boolean);
-    watchlistMovies = userWatchlist.map((w) => w.movie).filter(Boolean);
+    userReviews = (reviews || []).filter(r => r && r.movie);
+    watchlistMovies = (userWatchlist || []).map((w) => w.movie).filter(Boolean);
   }
 
+  const includeDebug = req.query.debug === 'true';
+
   const recommendedMovies = getRecommendations({
+    userId: req.user?.id || null,
     preferredGenres,
+    preferredLanguage,
     likedMovies,
-    watchHistory,
-    reviewedMovies,
+    dislikedMovies,
+    userReviews,
     watchlistMovies,
+    watchHistory,
     allMovies,
     limit: 12,
+    includeDebug,
   });
 
   res.json({ success: true, data: recommendedMovies });

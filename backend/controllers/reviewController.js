@@ -3,6 +3,7 @@ import Movie from '../models/Movie.js';
 import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
+import { tasteProfileCache } from '../services/tasteProfileService.js';
 
 /**
  * GET /api/reviews/:movieId — reviews for a movie with pagination
@@ -86,6 +87,7 @@ export const create = asyncHandler(async (req, res) => {
 
   const populated = await review.populate('user', 'name avatar');
 
+  tasteProfileCache.invalidate(req.user.id);
   res.status(201).json({ success: true, data: populated });
 });
 
@@ -101,6 +103,7 @@ export const remove = asyncHandler(async (req, res) => {
   }
 
   const movieId = review.movie;
+  const reviewUserId = review.user.toString();
   await Review.findByIdAndDelete(req.params.id);
 
   // Recalculate movie stats
@@ -114,5 +117,6 @@ export const remove = asyncHandler(async (req, res) => {
     reviewCount: agg.length ? agg[0].count : 0,
   });
 
+  tasteProfileCache.invalidate(reviewUserId);
   res.json({ success: true, message: 'Review deleted.' });
 });

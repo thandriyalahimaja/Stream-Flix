@@ -52,11 +52,55 @@ const movieSchema = new mongoose.Schema(
     // Computed from submitted reviews
     reviewCount: { type: Number, default: 0 },
     avgUserRating: { type: Number, default: 0 },
+
+    // Stable Identifiers
+    imdbId: { type: String, default: null, sparse: true, index: true },
+    tmdbId: { type: Number, default: null, sparse: true, index: true },
+
+    // Linguistic & Regional Metadata
+    language: { type: String, default: null, index: true },
+    languageName: { type: String, default: null },
+    industry: { type: String, default: null, index: true },
+
+    // Semantic Plot & Theme Tags
+    keywords: [{ type: String }],
+    themes: [{ type: String }],
+    moods: [{ type: String }],
+
+    // Vector Embeddings (768 dimensions for Gemini Embedding 2)
+    embedding: {
+      type: [Number],
+      default: undefined,
+      validate: {
+        validator: function (v) {
+          if (!v) return true; // Optional for historical/non-embedded films
+          if (!Array.isArray(v)) return false;
+          if (v.length !== 768) return false;
+          return v.every((n) => typeof n === 'number' && Number.isFinite(n));
+        },
+        message: 'Embedding must be an array of exactly 768 finite numbers',
+      },
+    },
+    embeddingModel: { type: String, default: null },
+    embeddingDimensions: { type: Number, default: null },
+    embeddingVersion: { type: String, default: null },
+    embeddingText: { type: String, default: null },
+
+    // Quality & Algorithmic Scoring Metadata
+    qualityScore: { type: Number, default: null },
+    weightedRating: { type: Number, default: null },
+    qualityTier: { type: String, default: null },
+    voteCount: { type: Number, default: null },
+    popularity: { type: Number, default: null },
+
+    // Enriched Trailer Metadata
+    trailer: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );
 
 // Full-text search index for title, synopsis, and director fields
-movieSchema.index({ title: 'text', synopsis: 'text', director: 'text' });
+// language_override: 'none' prevents MongoDB text search from trying to use Indian language codes (te, kn, ta, ml) as stemmers
+movieSchema.index({ title: 'text', synopsis: 'text', director: 'text' }, { language_override: 'none' });
 
 export default mongoose.model('Movie', movieSchema);

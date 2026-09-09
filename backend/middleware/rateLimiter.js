@@ -35,3 +35,15 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Rate limiter for AI natural language discovery endpoints — 60 requests per minute per IP.
+ */
+export const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isDevOrTest ? 200 : 60,
+  message: { success: false, message: 'Too many AI discovery queries. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+

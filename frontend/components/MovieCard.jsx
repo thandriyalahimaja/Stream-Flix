@@ -1,16 +1,18 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { Play, Star } from 'lucide-react';
+import { Play, Star, Sparkles } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { Badge } from './ui/Badge';
 import { moviePath } from '@/constants/routes';
+import { ExplanationModal } from './ExplanationModal';
 
 /**
- * Movie card with poster, hover overlay, rating, and progress bar.
+ * Movie card with poster, hover overlay, rating, progress bar, and "Why this movie?" explainability trigger.
  * Memoized to prevent unnecessary re-renders in lists.
  */
-export const MovieCard = memo(function MovieCard({ movie, size = 'md' }) {
+export const MovieCard = memo(function MovieCard({ movie, size = 'md', contextType = 'personalized', query = '' }) {
+  const [showExplanation, setShowExplanation] = useState(false);
   const sizeMap = {
     sm: { w: 'w-40', h: 'h-60' },
     md: { w: 'w-52', h: 'h-80' },
@@ -77,13 +79,33 @@ export const MovieCard = memo(function MovieCard({ movie, size = 'md' }) {
               <Badge key={g} variant="glass">{g}</Badge>
             ))}
           </div>
-          {movie.progress != null && (
-            <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.25)' }}>
-              <div className="h-full rounded-full" style={{ width: `${movie.progress}%`, background: 'var(--cw-button)' }} />
-            </div>
-          )}
+          {/* Why this movie? trigger */}
+          <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowExplanation(true);
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-300 transition opacity-80 hover:opacity-100"
+              title="See why this movie was recommended"
+            >
+              <Sparkles size={11} className="text-amber-400" />
+              <span>Why this movie?</span>
+            </button>
+          </div>
         </div>
       </motion.div>
+
+      {/* Grounded Explanation Modal */}
+      <ExplanationModal
+        isOpen={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        movie={movie}
+        contextType={contextType}
+        query={query}
+      />
     </Link>
   );
 });

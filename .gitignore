@@ -4,17 +4,21 @@ backend/node_modules/
 
 # Build output
 dist/
+build/
 backend/dist/
+backend/build/
 
 # Environment files
 .env
 .env.*
+*.env
 backend/.env
 backend/.env.*
 !.env.example
 !backend/.env.example
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -27,6 +31,19 @@ Thumbs.db
 .vite/
 coverage/
 
-# Editor and local tooling
+# Editor, local tooling, and agent preview artifacts
 .vscode/
 .idea/
+.agents/
+scratch/
+
+# Raw dataset pipeline artifacts and intermediate caches
+datasets/
+data/cache/
+embedding_cache/
+data/output/
+
+# Canonical Production Data (Preserve production seed)
+!data/
+!data/production/
+!data/production/**

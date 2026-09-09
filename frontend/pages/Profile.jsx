@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Camera } from 'lucide-react';
+import { Camera, Sparkles, Compass, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router';
 import { MainLayout } from '@/layouts/MainLayout';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -12,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import MediaUploader from '@/components/MediaUploader';
 import userService from '@/services/userService';
 import authService from '@/services/authService';
+import aiService from '@/services/aiService';
 
 
 /**
@@ -52,12 +54,48 @@ export default function Profile() {
   const [updateError, setUpdateError] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(null);
 
+  // Taste profile state (Phase 6)
+  const [tasteData, setTasteData] = useState(null);
+  const [tasteLoading, setTasteLoading] = useState(true);
+  const [tasteError, setTasteError] = useState(null);
+
   // Sync form fields with user data when loaded
   useEffect(() => {
     if (user) {
       setDisplayName(user.name || '');
       setGenrePreferences(user.preferences?.genres?.join(', ') || '');
     }
+  }, [user]);
+
+  // Fetch grounded taste profile on mount or when user changes
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchTasteProfile() {
+      if (!user) return;
+      try {
+        setTasteLoading(true);
+        setTasteError(null);
+        const res = await aiService.getTasteProfile();
+        if (isMounted) {
+          const profile = res?.profile || res?.data?.profile || null;
+          const summary = res?.summary || res?.data?.summary || null;
+          setTasteData({ profile, summary });
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to load taste profile:', err);
+          setTasteError('Unable to load your movie taste profile.');
+        }
+      } finally {
+        if (isMounted) {
+          setTasteLoading(false);
+        }
+      }
+    }
+    fetchTasteProfile();
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const handleOpenEditModal = () => {
@@ -195,6 +233,311 @@ export default function Profile() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Your Movie Taste Section (Phase 6) */}
+            <div className="mt-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center"
+                    style={{
+                      background: 'color-mix(in srgb, var(--cw-button) 15%, transparent)',
+                      color: 'var(--cw-button)',
+                    }}
+                  >
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg" style={{ color: 'var(--cw-text)' }}>
+                      Your Movie Taste
+                    </h3>
+                  </div>
+                </div>
+
+                {tasteData?.profile?.profileStrength && (
+                  <span
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider"
+                    style={{
+                      background:
+                        tasteData.profile.profileStrength === 'high'
+                          ? 'color-mix(in srgb, #10b981 15%, transparent)'
+                          : tasteData.profile.profileStrength === 'medium'
+                          ? 'color-mix(in srgb, #3b82f6 15%, transparent)'
+                          : 'color-mix(in srgb, var(--cw-text2) 15%, transparent)',
+                      color:
+                        tasteData.profile.profileStrength === 'high'
+                          ? '#10b981'
+                          : tasteData.profile.profileStrength === 'medium'
+                          ? '#3b82f6'
+                          : 'var(--cw-text2)',
+                    }}
+                  >
+                    {tasteData.profile.profileStrength === 'high'
+                      ? 'Confident Taste'
+                      : tasteData.profile.profileStrength === 'medium'
+                      ? 'Developing Taste'
+                      : 'Building Profile'}
+                  </span>
+                )}
+              </div>
+
+              {tasteLoading ? (
+                <div
+                  className="rounded-2xl p-6 animate-pulse"
+                  style={{
+                    background: 'var(--cw-bg)',
+                    border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                  }}
+                >
+                  <div className="h-4 bg-white/10 rounded w-1/3 mb-3"></div>
+                  <div className="h-3 bg-white/5 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-white/5 rounded w-1/2 mb-4"></div>
+                  <div className="flex gap-2">
+                    <div className="h-6 w-16 bg-white/10 rounded-full"></div>
+                    <div className="h-6 w-20 bg-white/10 rounded-full"></div>
+                    <div className="h-6 w-16 bg-white/10 rounded-full"></div>
+                  </div>
+                </div>
+              ) : tasteError ? (
+                <div
+                  className="rounded-2xl p-5 text-center text-sm"
+                  style={{
+                    background: 'var(--cw-bg)',
+                    color: 'var(--cw-text2)',
+                    border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                  }}
+                >
+                  <p>{tasteError}</p>
+                </div>
+              ) : tasteData?.profile?.profileStrength === 'low' ? (
+                <div
+                  className="rounded-2xl p-6 text-center"
+                  style={{
+                    background: 'var(--cw-bg)',
+                    border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                  }}
+                >
+                  <div className="inline-flex p-3 rounded-2xl bg-amber-400/10 text-amber-400 mb-3">
+                    <Compass size={24} />
+                  </div>
+                  <h4 className="font-semibold text-base mb-1" style={{ color: 'var(--cw-text)' }}>
+                    {tasteData?.summary?.headline || 'Building Your Taste Profile'}
+                  </h4>
+                  <p className="text-xs max-w-md mx-auto mb-4 leading-relaxed" style={{ color: 'var(--cw-text2)' }}>
+                    {tasteData?.summary?.text ||
+                      tasteData?.summary?.summary ||
+                      'Not enough viewing activity yet to build a reliable taste profile. Watch trailers, like movies, or write reviews to personalize your StreamFlix experience.'}
+                  </p>
+                  <Link
+                    to="/browse"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-transform hover:scale-105"
+                    style={{
+                      background: 'var(--cw-button)',
+                      color: 'white',
+                    }}
+                  >
+                    Explore Movies
+                  </Link>
+                </div>
+              ) : (
+                <div
+                  className="rounded-2xl p-6 space-y-5"
+                  style={{
+                    background: 'var(--cw-bg)',
+                    border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                  }}
+                >
+                  {/* AI Verbalizer Summary Card */}
+                  {tasteData?.summary && (
+                    <div
+                      className="p-4 rounded-xl space-y-2"
+                      style={{
+                        background: 'color-mix(in srgb, var(--cw-card) 60%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--cw-text) 6%, transparent)',
+                      }}
+                    >
+                      {tasteData.summary.headline && (
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--cw-text)' }}>
+                          {tasteData.summary.headline}
+                        </h4>
+                      )}
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--cw-text2)' }}>
+                        {tasteData.summary.text || tasteData.summary.summary}
+                      </p>
+
+                      {/* Highlight chips (max 3) */}
+                      {tasteData.summary.highlights && tasteData.summary.highlights.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {tasteData.summary.highlights.slice(0, 3).map((chip, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                              style={{
+                                background: 'color-mix(in srgb, var(--cw-button) 15%, transparent)',
+                                color: 'var(--cw-button)',
+                                border: '1px solid color-mix(in srgb, var(--cw-button) 30%, transparent)',
+                              }}
+                            >
+                              <CheckCircle2 size={10} />
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 4-Column Dimensions Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Top Genres */}
+                    <div
+                      className="p-3.5 rounded-xl"
+                      style={{
+                        background: 'color-mix(in srgb, var(--cw-card) 40%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                      }}
+                    >
+                      <div className="text-[10px] uppercase font-semibold tracking-wider mb-2" style={{ color: 'var(--cw-text2)' }}>
+                        Top Genres
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tasteData?.profile?.topGenres?.length > 0 ? (
+                          tasteData.profile.topGenres.slice(0, 3).map((genre) => (
+                            <span
+                              key={genre}
+                              className="text-xs px-2 py-0.5 rounded-md font-medium"
+                              style={{
+                                background: 'color-mix(in srgb, var(--cw-text) 8%, transparent)',
+                                color: 'var(--cw-text)',
+                              }}
+                            >
+                              {genre}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs italic" style={{ color: 'var(--cw-text2)' }}>None detected</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Top Languages */}
+                    <div
+                      className="p-3.5 rounded-xl"
+                      style={{
+                        background: 'color-mix(in srgb, var(--cw-card) 40%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                      }}
+                    >
+                      <div className="text-[10px] uppercase font-semibold tracking-wider mb-2" style={{ color: 'var(--cw-text2)' }}>
+                        Top Languages
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tasteData?.profile?.topLanguages?.length > 0 ? (
+                          tasteData.profile.topLanguages.slice(0, 3).map((lang) => (
+                            <span
+                              key={lang}
+                              className="text-xs px-2 py-0.5 rounded-md font-medium"
+                              style={{
+                                background: 'color-mix(in srgb, var(--cw-text) 8%, transparent)',
+                                color: 'var(--cw-text)',
+                              }}
+                            >
+                              {lang}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs italic" style={{ color: 'var(--cw-text2)' }}>None detected</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Top Themes */}
+                    <div
+                      className="p-3.5 rounded-xl"
+                      style={{
+                        background: 'color-mix(in srgb, var(--cw-card) 40%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                      }}
+                    >
+                      <div className="text-[10px] uppercase font-semibold tracking-wider mb-2" style={{ color: 'var(--cw-text2)' }}>
+                        Top Themes
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tasteData?.profile?.topThemes?.length > 0 ? (
+                          tasteData.profile.topThemes.slice(0, 3).map((theme) => (
+                            <span
+                              key={theme}
+                              className="text-xs px-2 py-0.5 rounded-md font-medium"
+                              style={{
+                                background: 'color-mix(in srgb, var(--cw-text) 8%, transparent)',
+                                color: 'var(--cw-text)',
+                              }}
+                            >
+                              {theme}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs italic" style={{ color: 'var(--cw-text2)' }}>None detected</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Interests */}
+                    <div
+                      className="p-3.5 rounded-xl"
+                      style={{
+                        background: 'color-mix(in srgb, var(--cw-card) 40%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--cw-text) 5%, transparent)',
+                      }}
+                    >
+                      <div className="text-[10px] uppercase font-semibold tracking-wider mb-2 flex items-center justify-between" style={{ color: 'var(--cw-text2)' }}>
+                        <span>Recent Interests</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-400 font-bold">New</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tasteData?.profile?.recentInterests?.length > 0 ? (
+                          tasteData.profile.recentInterests.slice(0, 3).map((item) => (
+                            <span
+                              key={item}
+                              className="text-xs px-2 py-0.5 rounded-md font-medium"
+                              style={{
+                                background: 'color-mix(in srgb, var(--cw-button) 12%, transparent)',
+                                color: 'var(--cw-button)',
+                              }}
+                            >
+                              {item}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs italic" style={{ color: 'var(--cw-text2)' }}>Active viewing stable</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Neutral Avoided Genres note if any */}
+                  {tasteData?.profile?.avoidedGenres?.length > 0 && (
+                    <div className="pt-1 flex items-center gap-2 text-xs" style={{ color: 'var(--cw-text2)' }}>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">Generally Avoids:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {tasteData.profile.avoidedGenres.map((g) => (
+                          <span
+                            key={g}
+                            className="px-2 py-0.5 rounded text-[11px] font-medium"
+                            style={{
+                              background: 'color-mix(in srgb, var(--cw-text) 6%, transparent)',
+                              color: 'var(--cw-text2)',
+                            }}
+                          >
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Preferences section */}

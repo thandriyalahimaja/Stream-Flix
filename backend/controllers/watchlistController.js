@@ -2,6 +2,7 @@ import Watchlist from '../models/Watchlist.js';
 import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
+import { tasteProfileCache } from '../services/tasteProfileService.js';
 
 export const getList = asyncHandler(async (req, res) => {
   const items = await Watchlist.find({ user: req.user.id }).populate('movie').sort('-addedAt');
@@ -24,6 +25,7 @@ export const addItem = asyncHandler(async (req, res) => {
       movie: movieId,
     });
 
+    tasteProfileCache.invalidate(req.user.id);
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     if (error.code === 11000) {
@@ -36,5 +38,6 @@ export const addItem = asyncHandler(async (req, res) => {
 
 export const removeItem = asyncHandler(async (req, res) => {
   await Watchlist.findOneAndDelete({ user: req.user.id, movie: req.params.movieId });
+  tasteProfileCache.invalidate(req.user.id);
   res.json({ success: true, message: 'Removed from watchlist.' });
 });

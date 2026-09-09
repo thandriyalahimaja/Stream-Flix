@@ -5,6 +5,7 @@ import Movie from '../models/Movie.js';
 import Activity from '../models/Activity.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
+import { tasteProfileCache } from '../services/tasteProfileService.js';
 
 /**
  * GET /api/users/profile
@@ -36,6 +37,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+  tasteProfileCache.invalidate(req.user.id);
   res.json({ success: true, data: updatedUser, message: 'Profile updated successfully.' });
 });
 
@@ -90,6 +92,7 @@ export const addToWatchHistory = asyncHandler(async (req, res) => {
       type: 'watch',
       movie: movieId,
     });
+    tasteProfileCache.invalidate(req.user.id);
   }
 
   res.json({ success: true, message: 'Trailer start recorded.' });
@@ -158,6 +161,7 @@ export const toggleLike = asyncHandler(async (req, res) => {
   }
 
   const finalUser = await User.findById(userId);
+  tasteProfileCache.invalidate(userId);
   res.json({ success: true, action, likedMovies: finalUser.likedMovies });
 });
 
@@ -214,6 +218,7 @@ export const toggleDislike = asyncHandler(async (req, res) => {
   }
 
   const finalUser = await User.findById(userId);
+  tasteProfileCache.invalidate(userId);
   res.json({ success: true, action, dislikedMovies: finalUser.dislikedMovies });
 });
 

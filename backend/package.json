@@ -10,6 +10,8 @@
     "start": "node server.js",
     "seed:prod": "node seed/seedMoviesProduction.js",
     "seed:dry": "node seed/seedMoviesProduction.js --dry-run",
+    "seed:indian": "node seed/seedIndianMovies.js",
+    "seed:indian:dry": "node seed/seedIndianMovies.js --dry-run",
     "sync": "node seed/syncMovies.js",
     "verify": "node seed/verifyMovies.js",
     "migrate": "node seed/migrateMedia.js",

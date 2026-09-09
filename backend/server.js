@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
 import { maybeRunMovieSync } from './seed/syncMovies.js';
+import { maybeRunIndianMovieSeed } from './seed/seedIndianMovies.js';
 import { maybeRunAdminSeed } from './seed/seedAdmin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -16,6 +17,7 @@ import watchlistRoutes from './routes/watchlistRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 
 const app = express();
@@ -55,7 +57,10 @@ app.use(
 );
 
 // Cross-origin resource sharing — allow frontend origin with credentials
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+const allowedOrigins = typeof env.CORS_ORIGIN === 'string' && env.CORS_ORIGIN.includes(',')
+  ? env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : env.CORS_ORIGIN;
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // General API rate limiting for platform endpoints
 app.use('/api', apiLimiter);
@@ -78,6 +83,7 @@ app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/ai', aiRoutes);
 
 
 // Health check endpoint — useful for deployment and monitoring
@@ -100,6 +106,7 @@ app.use(errorHandler);
 async function startServer() {
   await connectDB();
   await maybeRunMovieSync();
+  await maybeRunIndianMovieSeed();
   await maybeRunAdminSeed();
   app.listen(env.PORT, () => {
     console.log(`🌊 StreamFlix API running on port ${env.PORT} [${env.NODE_ENV}]`);
