@@ -145,7 +145,7 @@ export default function Dashboard() {
               <div className="lg:col-span-2 rounded-2xl p-6 border" style={{ background: 'var(--cw-card)', borderColor: 'color-mix(in srgb, var(--cw-text) 8%, transparent)' }}>
                 <div className="flex justify-between items-end mb-4">
                   <h3 className="font-semibold" style={{ color: 'var(--cw-text)' }}>Weekly trailer plays</h3>
-                  <span className="text-xs font-medium" style={{ color: 'var(--cw-text2)' }}>Last 7 days (MERN activity)</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--cw-text2)' }}>Last 7 days (Streaming activity)</span>
                 </div>
                 <div className="h-[220px]">
                   {dashboardData?.weeklyActivity && dashboardData.weeklyActivity.length > 0 ? (

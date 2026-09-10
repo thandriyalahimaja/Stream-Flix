@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Camera, Sparkles, Compass, CheckCircle2 } from 'lucide-react';
+import { Camera, Sparkles, Compass, CheckCircle2, Eye, EyeOff, Key } from 'lucide-react';
 import { Link } from 'react-router';
 import { MainLayout } from '@/layouts/MainLayout';
 import { useTheme } from '@/context/ThemeContext';
@@ -58,6 +58,29 @@ export default function Profile() {
   const [tasteData, setTasteData] = useState(null);
   const [tasteLoading, setTasteLoading] = useState(true);
   const [tasteError, setTasteError] = useState(null);
+
+  // Custom API key state
+  const [savedApiKey, setSavedApiKey] = useState(() => localStorage.getItem('streamflix_custom_api_key') || '');
+  const [inputApiKey, setInputApiKey] = useState(() => localStorage.getItem('streamflix_custom_api_key') || '');
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  const handleSaveApiKey = () => {
+    const trimmed = inputApiKey.trim();
+    if (!trimmed) {
+      toast.error('Please enter a valid API key');
+      return;
+    }
+    localStorage.setItem('streamflix_custom_api_key', trimmed);
+    setSavedApiKey(trimmed);
+    toast.success('Custom API Key saved successfully');
+  };
+
+  const handleClearApiKey = () => {
+    localStorage.removeItem('streamflix_custom_api_key');
+    setSavedApiKey('');
+    setInputApiKey('');
+    toast.success('Custom API Key removed. Using default system key.');
+  };
 
   // Sync form fields with user data when loaded
   useEffect(() => {
@@ -559,6 +582,65 @@ export default function Profile() {
                   label="Streaming Quality"
                   value="1080p WebStream"
                 />
+              </div>
+
+              {/* AI API Key Configuration */}
+              <div
+                className="mt-6 p-5 rounded-2xl border"
+                style={{
+                  background: 'var(--cw-bg)',
+                  borderColor: 'color-mix(in srgb, var(--cw-text) 8%, transparent)',
+                }}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Key size={18} style={{ color: 'var(--cw-button)' }} />
+                    <h4 className="font-semibold text-sm" style={{ color: 'var(--cw-text)' }}>
+                      Custom AI API Key Configuration
+                    </h4>
+                  </div>
+                  {savedApiKey ? (
+                    <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Custom Key Active
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-neutral-400">
+                      Using System API Key
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--cw-text2)' }}>
+                  Provide your own Gemini / AI Provider API Key to power search models and personalized recommendations.
+                </p>
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <input
+                      id="user-custom-api-key"
+                      type={showApiKey ? 'text' : 'password'}
+                      placeholder="Paste your API key (e.g. AIzaSy...)"
+                      value={inputApiKey}
+                      onChange={(e) => setInputApiKey(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl outline-none text-sm pr-10 border transition-all focus:ring-2 focus:ring-[var(--cw-button)]/30"
+                      style={{
+                        background: 'var(--cw-card)',
+                        color: 'var(--cw-text)',
+                        borderColor: 'color-mix(in srgb, var(--cw-text) 10%, transparent)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors"
+                      title={showApiKey ? 'Hide Key' : 'Show Key'}
+                    >
+                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <Button size="sm" onClick={handleSaveApiKey}>Save Key</Button>
+                  {savedApiKey && (
+                    <Button size="sm" variant="secondary" onClick={handleClearApiKey}>Clear</Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

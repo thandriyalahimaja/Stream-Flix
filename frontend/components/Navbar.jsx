@@ -8,6 +8,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { Avatar } from './ui/Avatar';
 import { Dropdown, DropdownItem, DropdownSeparator } from './ui/Dropdown';
 import { ROUTES } from '@/constants/routes';
+import { SearchPopout } from './SearchPopout';
 
 const navLinks = [
   { to: ROUTES.HOME, label: 'Home' },
@@ -23,6 +24,7 @@ export function Navbar() {
   const isMobile = useMobile();
   const [q, setQ] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchPopoutOpen, setSearchPopoutOpen] = useState(false);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -79,22 +81,24 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Search bar */}
-          <form
-            onSubmit={handleSearch}
-            className="ml-auto flex items-center gap-2 rounded-xl px-3 py-1.5 flex-1 max-w-xs"
+          {/* Search bar button / popout launcher */}
+          <div
+            onClick={() => setSearchPopoutOpen(true)}
+            className="ml-auto flex items-center gap-2 rounded-xl px-3 py-1.5 flex-1 max-w-xs cursor-pointer transition-all hover:bg-white/10"
             style={{ background: 'color-mix(in srgb, var(--cw-text) 8%, transparent)' }}
           >
             <Search size={16} style={{ color: 'var(--cw-text2)' }} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search titles, moods…"
-              className="bg-transparent outline-none w-full text-sm"
+              onFocus={() => setSearchPopoutOpen(true)}
+              placeholder="Search titles, AI prompts…"
+              className="bg-transparent outline-none w-full text-sm cursor-pointer pointer-events-none"
               style={{ color: 'var(--cw-text)' }}
               id="navbar-search"
+              readOnly
             />
-          </form>
+          </div>
 
           {/* Notification bell */}
           <Dropdown
@@ -246,6 +250,13 @@ export function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Popout Search Modal */}
+      <SearchPopout
+        isOpen={searchPopoutOpen}
+        onClose={() => setSearchPopoutOpen(false)}
+        initialQuery={q}
+      />
     </>
   );
 }

@@ -764,7 +764,7 @@ export default function Admin() {
             <div className="space-y-6">
               {/* Signup Graph */}
               <div className="rounded-2xl p-6" style={{ background: 'var(--cw-card)' }}>
-                <h3 className="font-semibold mb-4" style={{ color: 'var(--cw-text)' }}>Monthly user registrations (MERN database statistics)</h3>
+                <h3 className="font-semibold mb-4" style={{ color: 'var(--cw-text)' }}>Monthly user registrations (Platform Database Statistics)</h3>
                 <div className="h-64">
                   {loadingStats ? (
                     <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--cw-text2)' }}>Loading user statistics...</div>
@@ -886,7 +886,7 @@ export default function Admin() {
                 <div>
                   <h3 className="font-semibold" style={{ color: 'var(--cw-text)' }}>Export Clean Seed Dataset</h3>
                   <p className="text-sm mt-1" style={{ color: 'var(--cw-text2)' }}>
-                    Download the entire MERN database catalog formatted cleanly as a JSON seed.
+                    Download the entire StreamFlix catalog formatted cleanly as a JSON seed.
                   </p>
                 </div>
                 <Button 

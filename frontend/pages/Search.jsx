@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
-import { Search as SearchIcon, TrendingUp, Loader2, Sparkles, Clock, Globe, Film, CheckCircle2 } from 'lucide-react';
+import { Search as SearchIcon, TrendingUp, Loader2, Sparkles, Clock, Globe, Film, CheckCircle2, Cpu, ChevronDown } from 'lucide-react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { MovieCard } from '@/components/MovieCard';
 import { MovieCardSkeleton } from '@/components/ui/Skeleton';
@@ -10,6 +10,7 @@ import ErrorState from '@/components/ErrorState';
 import { useDebounce } from '@/hooks/useDebounce';
 import movieService from '@/services/movieService';
 import aiService from '@/services/aiService';
+import { AI_MODELS } from '@/components/SearchPopout';
 
 const trending = ['Spider', 'Dune', 'Family', 'Action', 'Drama'];
 
@@ -23,7 +24,13 @@ const aiSuggestions = [
 
 export default function Search() {
   const [params, setParams] = useSearchParams();
-  const [mode, setMode] = useState(params.get('mode') === 'ai' ? 'ai' : 'standard');
+  const initialMode = params.get('mode') === 'ai' || params.get('mode') === 'remix' ? 'ai' : 'standard';
+  const initialModel = params.get('model') || 'gemini-3.5-flash';
+
+  const [mode, setMode] = useState(initialMode);
+  const [selectedModel, setSelectedModel] = useState(initialModel);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef(null);
 
   // Standard search state
   const [q, setQ] = useState(params.get('q') || '');
@@ -142,7 +149,7 @@ export default function Search() {
     setError(null);
 
     try {
-      const res = await aiService.searchWithAI(targetQuery, { limit: 12 });
+      const res = await aiService.searchWithAI(targetQuery, { limit: 12, model: selectedModel });
       if (res && res.success) {
         setAiResults(res.data || []);
         setAiIntent(res.normalizedIntent || null);
@@ -166,20 +173,31 @@ export default function Search() {
     setMode(newMode);
     setError(null);
     if (newMode === 'ai') {
-      setParams({ mode: 'ai' });
+      setParams({ q: aiQuery || q || '', mode: 'ai', model: selectedModel });
       if (aiQuery.trim() && aiResults.length === 0) {
         handleAISubmit(null, aiQuery);
       }
     } else {
-      setParams({ q: q || '' });
+      setParams({ q: q || '', mode: 'standard' });
     }
   };
+
+  const handleModelSelect = (modelId) => {
+    setSelectedModel(modelId);
+    setModelDropdownOpen(false);
+    if (mode === 'ai' && aiQuery.trim()) {
+      setParams({ q: aiQuery, mode: 'ai', model: modelId });
+      handleAISubmit(null, aiQuery);
+    }
+  };
+
+  const activeModelObj = AI_MODELS.find((m) => m.id === selectedModel) || AI_MODELS[0];
 
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto px-6">
-        {/* Mode Switcher */}
-        <div className="flex justify-center mb-6">
+        {/* Mode Switcher & Model Selector Bar */}
+        <div className="flex justify-center items-center flex-wrap gap-4 mb-6">
           <div
             className="flex p-1 rounded-2xl border backdrop-blur-md"
             style={{
@@ -205,8 +223,70 @@ export default function Search() {
                 color: mode === 'ai' ? 'white' : 'var(--cw-text2)',
               }}
             >
-              <Sparkles size={16} /> Ask StreamFlix AI
+              <Sparkles size={16} /> Remix Search (AI)
             </button>
+          </div>
+
+          {/* AI Model Dropdown */}
+          <div className="relative" ref={modelDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs font-semibold transition-all hover:bg-white/5 cursor-pointer"
+              style={{
+                background: 'var(--cw-card)',
+                color: 'var(--cw-text)',
+                borderColor: 'color-mix(in srgb, var(--cw-text) 12%, transparent)',
+              }}
+            >
+              <Cpu size={14} style={{ color: 'var(--cw-button)' }} />
+              <span>Model: <strong>{activeModelObj.name}</strong></span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase" style={{ background: 'color-mix(in srgb, var(--cw-button) 20%, transparent)', color: 'var(--cw-button)' }}>
+                {activeModelObj.badge}
+              </span>
+              <ChevronDown size={14} className={`transition-transform ${modelDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {modelDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  className="absolute right-0 mt-2 w-64 rounded-2xl glass-strong border shadow-2xl p-2 z-50 space-y-1"
+                  style={{
+                    borderColor: 'color-mix(in srgb, var(--cw-text) 15%, transparent)',
+                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--cw-text2)' }}>
+                    Select Search AI Model
+                  </div>
+                  {AI_MODELS.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleModelSelect(m.id)}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs flex flex-col gap-0.5 transition-colors cursor-pointer"
+                      style={{
+                        background: selectedModel === m.id ? 'color-mix(in srgb, var(--cw-button) 15%, transparent)' : 'transparent',
+                        color: selectedModel === m.id ? 'var(--cw-button)' : 'var(--cw-text)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>{m.name}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase" style={{ background: 'color-mix(in srgb, var(--cw-text) 10%, transparent)' }}>
+                          {m.badge}
+                        </span>
+                      </div>
+                      <span className="text-[10px] leading-tight" style={{ color: 'var(--cw-text2)' }}>
+                        {m.desc}
+                      </span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

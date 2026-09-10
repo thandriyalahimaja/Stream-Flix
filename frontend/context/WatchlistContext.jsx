@@ -6,7 +6,7 @@ import { useToast } from './ToastContext';
 const WatchlistContext = createContext(null);
 
 /**
- * Watchlist state management synchronized with the MERN backend.
+ * Watchlist state management synchronized with the StreamFlix backend.
  */
 export function WatchlistProvider({ children }) {
   const { isAuthenticated } = useAuth();

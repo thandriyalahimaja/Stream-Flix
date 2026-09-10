@@ -40,11 +40,15 @@ const api = axios.create({
   withCredentials: true, // Send httpOnly refresh cookie with every request
 });
 
-// Request interceptor — attach auth token
+// Request interceptor — attach auth token & optional user custom API key
 api.interceptors.request.use(
   (config) => {
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    const customApiKey = localStorage.getItem('streamflix_custom_api_key');
+    if (customApiKey) {
+      config.headers['X-Custom-API-Key'] = customApiKey;
     }
     return config;
   },
